@@ -1,6 +1,12 @@
+use serde::Serialize;
+
+pub const START_ADDRESS: RawOperand = 0x10;
+
 pub type RawOperand = u16;
+pub type RawAddress = RawOperand;
 pub type RawPort = u8;
 
+#[derive(Serialize)]
 pub struct Operand {
     pub operand: RawOperand,
     pub operand_type: OperandType,
@@ -9,6 +15,7 @@ pub struct Operand {
 // address
 // label, (label), !label, same with number
 
+#[derive(Clone, Copy, Serialize)]
 pub enum Opcode {
     IN,  // port
     OUT, // port
@@ -31,10 +38,36 @@ pub enum Opcode {
     HALT, // none
 }
 
+#[derive(Serialize)]
 pub enum OperandType {
     None,
     Indirect,
     Absolute,
     Relative,
-    Immidiate,
+    Immediate,
+}
+
+#[derive(Serialize)]
+pub struct CompiledCommand {
+    pub opcode: Opcode,
+    #[serde(flatten)]
+    pub operand: Operand,
+}
+
+#[derive(Serialize)]
+pub struct CompiledSection {
+    pub start_address: RawAddress,
+    pub items: Vec<MemoryItem>,
+}
+
+#[derive(Serialize)]
+pub struct CompiledProgram {
+    pub sections: Vec<CompiledSection>,
+}
+
+#[derive(Serialize)]
+#[serde(untagged)]
+pub enum MemoryItem {
+    Data(u32),
+    Command(CompiledCommand),
 }
