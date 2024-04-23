@@ -43,6 +43,8 @@ type ResolvedLabels = HashMap<Label, RawAddress>;
 // they obtain theirs address as (section start + (command_index - section_index))
 // this
 
+static NUMBER_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^(?P<prefix>0[xb])?(?P<number>[\dabcdef_]+)$").unwrap());
 static WORD_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"[\w_]+").unwrap());
 static LABEL_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(format!(r"^{}?:", *WORD_REGEX).as_str()).unwrap());
@@ -459,6 +461,7 @@ pub fn parse_asm(input: impl AsRef<str>) -> Result<ParsedProgram, ParsingErrorOn
     let mut current_address: RawAddress = 0x0;
 
     for (line_number, line) in lines.enumerate() {
+        let line_number = line_number + 1;
         let maybe_label = LABEL_REGEX.find(line);
 
         let start = maybe_label.map_or(0, |label_match| label_match.end());
@@ -534,15 +537,19 @@ pub fn parse_asm(input: impl AsRef<str>) -> Result<ParsedProgram, ParsingErrorOn
 }
 
 fn parse_number<T: Integer>(input: &str) -> Result<T, <T as Num>::FromStrRadixErr> {
-    let (prefix, value) = if input.len() > 2 {
-        input.split_at(2)
-    } else {
-        ("", input)
+    let parsed = NUMBER_REGEX
+        .captures(input)
+        .expect(format!("Number expected! Received {input}").as_str());
+
+    let prefix = parsed.name("prefix").map_or("", |matched| matched.as_str());
+    let value = &parsed["number"];
+
+    let value = value.replace("_", "");
+    let radix = match prefix {
+        "0x" => 16,
+        "0b" => 2,
+        _ => 10,
     };
 
-    match prefix {
-        "0x" => T::from_str_radix(value, 16),
-        "0b" => T::from_str_radix(value, 2),
-        _ => T::from_str_radix(input, 10),
-    }
+    T::from_str_radix(&value, radix)
 }

@@ -9,7 +9,7 @@ next:
   word 0
 
 max:
-  word 4000000
+  word 4_000_000
 
 sum:
   // 2 is second member of fibonachi series
