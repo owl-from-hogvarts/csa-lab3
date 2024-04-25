@@ -1,3 +1,5 @@
+use core::panic;
+
 use serde::Serialize;
 
 pub const START_ADDRESS: RawOperand = 0x10;
@@ -70,4 +72,28 @@ pub struct CompiledProgram {
 pub enum MemoryItem {
     Data(u32),
     Command(CompiledCommand),
+}
+
+impl MemoryItem {
+    pub fn unwrap_data(self) -> u32 {
+        match self {
+            MemoryItem::Data(payload) => payload,
+            MemoryItem::Command(_) => {
+                panic!("Instruction accessed! Instructions does not have binary representation!")
+            }
+        }
+    }
+
+    pub fn unwrap_command(self) -> CompiledCommand {
+        match self {
+            MemoryItem::Data(_) => panic!("Data accessed! Instruction expected!"),
+            MemoryItem::Command(command) => command,
+        }
+    }
+}
+
+impl From<MemoryItem> for u32 {
+    fn from(value: MemoryItem) -> Self {
+        value.unwrap_data()
+    }
 }
