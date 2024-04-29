@@ -5,5 +5,5 @@ resolver = "2"
 members = [
   "cpu",
   "assembler"
-, "isa"]
+, "isa", "cli_utils"]
 

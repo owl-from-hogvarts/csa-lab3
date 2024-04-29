@@ -1,7 +1,7 @@
+use cli_utils::ConfigurationError;
 use serde_json::to_writer;
 use std::{
     env,
-    fmt::Display,
     fs::{self, OpenOptions},
     path::PathBuf,
 };
@@ -99,34 +99,4 @@ fn parse_cli_args() -> Result<Config, ConfigurationError> {
         input_file,
         output_file,
     })
-}
-
-enum ConfigurationError {
-    InvalidUnicode,
-    NotAFile(PathBuf),
-    ArgumentNotFound { argument_name: String },
-    EmptyArgument(usize),
-}
-
-impl Display for ConfigurationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ConfigurationError::ArgumentNotFound { argument_name } => {
-                writeln!(f, "Argument expected but not provided: {argument_name}")
-            }
-            ConfigurationError::EmptyArgument(index) => {
-                writeln!(f, "Argument at position {} is empty!", index + 1)
-            }
-            ConfigurationError::InvalidUnicode => {
-                writeln!(f, "Only Unicode arguments are supported!")
-            }
-            ConfigurationError::NotAFile(path) => {
-                writeln!(
-                    f,
-                    "{} seems to be NOT a file! Expected text file",
-                    path.to_string_lossy()
-                )
-            }
-        }
-    }
 }
