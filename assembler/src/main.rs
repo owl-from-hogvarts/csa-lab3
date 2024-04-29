@@ -1,7 +1,7 @@
 use cli_utils::ConfigurationError;
-use serde_json::to_writer;
 use std::{
     env,
+    error::Error,
     fs::{self, OpenOptions},
     path::PathBuf,
 };
@@ -11,56 +11,27 @@ use parser::parse_asm;
 mod parser;
 
 fn main() {
-    let config = match parse_cli_args() {
-        Ok(config) => config,
-        Err(err) => {
-            eprintln!("Error: {err}");
-            return;
-        }
-    };
+    match start() {
+        Ok(_) => (),
+        Err(err) => eprintln!("Error: {err}"),
+    }
+}
 
-    let input_srting = match fs::read_to_string(config.input_file) {
-        Ok(input) => input,
-        Err(err) => {
-            eprintln!("Error: {}", err);
-            return;
-        }
-    };
+fn start() -> Result<(), Box<dyn Error>> {
+    let config = parse_cli_args()?;
 
-    let parsed_program = match parse_asm(input_srting) {
-        Ok(program) => program,
-        Err(err) => {
-            eprintln!("Error: {}", err);
-            return;
-        }
-    };
+    let input_srting = fs::read_to_string(config.input_file)?;
 
-    let compiled = match parsed_program.compile() {
-        Ok(compiled_program) => compiled_program,
-        Err(err) => {
-            eprintln!("Error: {}", err);
-            return;
-        }
-    };
+    let parsed_program = parse_asm(input_srting)?;
 
-    let output_file = match OpenOptions::new()
+    let compiled = parsed_program.compile()?;
+
+    let output_file = OpenOptions::new()
         .create(true)
         .write(true)
-        .open(config.output_file)
-    {
-        Ok(file) => file,
-        Err(err) => {
-            eprintln!("Error: {}", err);
-            return;
-        }
-    };
-    match to_writer(output_file, &compiled) {
-        Ok(_) => (),
-        Err(err) => {
-            eprintln!("Error: {}", err);
-            return;
-        }
-    }
+        .open(config.output_file)?;
+
+    Ok(serde_json::to_writer(output_file, &compiled)?)
 }
 
 struct Config {
