@@ -1,4 +1,4 @@
-use cli_utils::ConfigurationError;
+use cli_utils::{check_empty_arguments, ConfigurationError};
 use std::{
     env,
     error::Error,
@@ -43,12 +43,8 @@ struct Config {
 /// input output
 fn parse_cli_args() -> Result<Config, ConfigurationError> {
     let mut args: Vec<String> = env::args().skip(1).collect();
+    check_empty_arguments(&args)?;
     args.reverse();
-    for (index, arg) in args.iter().enumerate() {
-        if arg.len() < 1 {
-            return Err(ConfigurationError::EmptyArgument(index));
-        }
-    }
 
     let input_file: PathBuf = args
         .pop()

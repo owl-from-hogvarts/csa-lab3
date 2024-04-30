@@ -1,7 +1,8 @@
-use std::{fmt::Display, num::ParseIntError, ops::Range};
+use std::{error::Error, fmt::Display, num::ParseIntError, ops::Range};
 
 use super::Label;
 
+#[derive(Debug)]
 pub enum ParsingError {
     UnknownCommand(String),
     NoArgumentProvided,
@@ -32,6 +33,7 @@ impl From<ParseIntError> for ParsingError {
     }
 }
 
+#[derive(Debug)]
 pub enum CompilationError {
     LabelDoesNotExists {
         label: Label,
@@ -41,6 +43,8 @@ pub enum CompilationError {
         actual_size: usize,
     },
 }
+
+impl Error for CompilationError {}
 
 impl Display for CompilationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -64,10 +68,13 @@ impl Display for CompilationError {
     }
 }
 
+#[derive(Debug)]
 pub struct ParsingErrorOnLine {
     pub error: ParsingError,
     pub line_number: usize,
 }
+
+impl Error for ParsingErrorOnLine {}
 
 impl Display for ParsingErrorOnLine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
