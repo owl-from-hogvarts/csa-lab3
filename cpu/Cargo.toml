@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 isa = { path = "../isa" }
+cli_utils = { path = "../cli_utils" }
+serde_json = "1.0"

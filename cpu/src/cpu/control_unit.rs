@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use super::MicrocodeStorage;
 
 #[allow(non_camel_case_types)]
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Signal {
     // enables io
     IO,
@@ -18,7 +18,7 @@ pub enum Signal {
     // address and data are latched in single
     // microinstruction
     // by default write to data
-    WRITE_DATA_OR_ADDRESS,
+    WRITE_DATA,
     WRITE_ADDRESS, // select write to address
     WRITE_STATUS,
     WRITE_COMMAND,
@@ -39,6 +39,10 @@ pub enum Signal {
     NOT_RIGHT,
     // left + right + 1
     INC,
+
+    // Commutator
+    SHIFT_LEFT,
+
     // left alu input multiplexing
     // zero left has higher priority
     // (if both zero and PC are selected, zero will be outputted)
@@ -46,11 +50,14 @@ pub enum Signal {
     ZERO_LEFT,
     SELECT_PC,
 
-    // right alu input multiplexer
-    // zero right has higher priority
-    // by default data is selected
-    ZERO_RIGHT,
-    SELECT_CMD_OPERAND,
+    // RIGHT MULTIPLEXOR
+    // SELECT_RIGHT_1 SELECT_RIGHT_ZERO OUTPUT
+    // 0              0              DATA
+    // 0              1              0
+    // 1              0              CMD_OPERAND
+    // 1              1              ADDRESS
+    SELECT_RIGHT_1,
+    SELECT_RIGHT_ZERO,
 
     // CONTROL UNIT
     // by default current_address + 1 happens
@@ -78,82 +85,126 @@ pub fn get_microcode() -> MicrocodeStorage {
     use Signal::*;
     vec![
         // instruction fetch
-        // pc > addr
-        mc![SELECT_PC, ZERO_RIGHT, WRITE_DATA_OR_ADDRESS, WRITE_ADDRESS],
-        // pc += 1; mem[addr] > data
+        // pc -> addr
+        mc![SELECT_PC, SELECT_RIGHT_ZERO, WRITE_ADDRESS],
+        // pc += 1; mem[addr] -> data
         mc![
             SELECT_PC,
-            ZERO_RIGHT,
+            SELECT_RIGHT_ZERO,
             INC,
             WRITE_PROGRAM_COUNTER,
             SELECT_MEM,
-            WRITE_DATA_OR_ADDRESS
+            WRITE_DATA
         ],
-        mc![WRITE_COMMAND],
-        mc![SELECT_MC_1],
+        mc![WRITE_COMMAND, SELECT_MC_1],
         // operand fetch
         // immediate
-        mc![SELECT_CMD_OPERAND, ZERO_LEFT, WRITE_DATA_OR_ADDRESS],
-        mc![SELECT_MC_0, SELECT_MC_1],
-        // absolute
         mc![
-            SELECT_CMD_OPERAND,
+            SELECT_RIGHT_1,
             ZERO_LEFT,
-            WRITE_DATA_OR_ADDRESS,
-            WRITE_ADDRESS
+            WRITE_DATA,
+            // this is cratch. see notes on "jump" microcode
+            WRITE_ADDRESS,
+            SELECT_MC_0,
+            SELECT_MC_1
         ],
-        mc![SELECT_MEM, WRITE_DATA_OR_ADDRESS],
-        mc![SELECT_MC_0, SELECT_MC_1],
+        // absolute
+        mc![SELECT_RIGHT_1, ZERO_LEFT, WRITE_ADDRESS],
+        mc![SELECT_MEM, WRITE_DATA, SELECT_MC_0, SELECT_MC_1],
         // relative
-        mc![
-            SELECT_PC,
-            SELECT_CMD_OPERAND,
-            WRITE_DATA_OR_ADDRESS,
-            WRITE_ADDRESS
-        ],
-        mc![SELECT_MEM, WRITE_DATA_OR_ADDRESS],
-        mc![SELECT_MC_0, SELECT_MC_1],
+        mc![SELECT_PC, SELECT_RIGHT_1, WRITE_ADDRESS],
+        mc![SELECT_MEM, WRITE_DATA, SELECT_MC_0, SELECT_MC_1],
         // indirect relative
-        mc![
-            SELECT_PC,
-            SELECT_CMD_OPERAND,
-            WRITE_DATA_OR_ADDRESS,
-            WRITE_ADDRESS
-        ],
-        mc![SELECT_MEM, WRITE_DATA_OR_ADDRESS],
-        mc![ZERO_LEFT, WRITE_DATA_OR_ADDRESS, WRITE_ADDRESS],
-        mc![SELECT_MEM, WRITE_DATA_OR_ADDRESS],
-        mc![SELECT_MC_0, SELECT_MC_1],
+        mc![SELECT_PC, SELECT_RIGHT_1, WRITE_ADDRESS],
+        mc![SELECT_MEM, WRITE_DATA],
+        mc![ZERO_LEFT, WRITE_ADDRESS],
+        mc![SELECT_MEM, WRITE_DATA, SELECT_MC_0, SELECT_MC_1],
         // execution
         // at this moment operand is stored in
         // data register
+
+        // io
         // IN
         mc![IO, WRITE_ACCUMULATOR],
         // OUT
         mc![IO, WRITE_IO],
+        // ----
+
+        // memory
         // LOAD
         mc![ZERO_LEFT, WRITE_ACCUMULATOR],
         // STORE
-        mc![ZERO_RIGHT, WRITE_DATA_OR_ADDRESS],
+        mc![SELECT_RIGHT_ZERO, WRITE_DATA],
         mc![WRITE_MEM],
+        // ----
+
+        // operations
         // ADD
         mc![WRITE_ACCUMULATOR, WRITE_STATUS],
         // INC
-        mc![ZERO_RIGHT, INC, WRITE_ACCUMULATOR, WRITE_STATUS],
+        mc![SELECT_RIGHT_ZERO, INC, WRITE_ACCUMULATOR, WRITE_STATUS],
         // AND
         mc![AND, WRITE_ACCUMULATOR, WRITE_STATUS],
         // CMP
         mc![NOT_RIGHT, INC, WRITE_STATUS],
+        // SHIFT_LEFT
+        mc![SELECT_RIGHT_ZERO, SHIFT_LEFT, WRITE_ACCUMULATOR],
+        // ----
+
+        // jumps
+        // jumps only support absolute, relative, indirect operand types
+        // therefore if compiler occasionally produces jump command
+        // with operand type of Immediate
+        // undefined behaviour occures!
+        // Then it's possbile vulnarability
+
+        // solutions: for one variant see cpu.rs
+
+        // cratch is implemented: too short on time
+        // cratch: for "immediate" operand type, override address
+        // with immediate value
+
         // JZC
         mc![
-            SELECT_PC,
-            SELECT_CMD_OPERAND,
+            ZERO_LEFT,
+            SELECT_RIGHT_1,
+            SELECT_RIGHT_ZERO,
             WRITE_PROGRAM_COUNTER_Z,
             WRITE_PROGRAM_COUNTER_CLEAR
         ],
         // JZS
-        mc![WRITE_PROGRAM_COUNTER_Z],
+        mc![
+            ZERO_LEFT,
+            SELECT_RIGHT_1,
+            SELECT_RIGHT_ZERO,
+            WRITE_PROGRAM_COUNTER_Z
+        ],
         // JCC
-        mc![WRITE_PROGRAM_COUNTER_C],
+        mc![
+            ZERO_LEFT,
+            SELECT_RIGHT_1,
+            SELECT_RIGHT_ZERO,
+            WRITE_PROGRAM_COUNTER_C,
+            WRITE_PROGRAM_COUNTER_CLEAR
+        ],
+        // JCS
+        mc![
+            ZERO_LEFT,
+            SELECT_RIGHT_1,
+            SELECT_RIGHT_ZERO,
+            WRITE_PROGRAM_COUNTER_C
+        ],
+        // JUMP
+        mc![
+            ZERO_LEFT,
+            SELECT_RIGHT_1,
+            SELECT_RIGHT_ZERO,
+            WRITE_PROGRAM_COUNTER
+        ],
+        // NOP
+        // well do nothing
+
+        // HALT
+        mc![HALT],
     ]
 }

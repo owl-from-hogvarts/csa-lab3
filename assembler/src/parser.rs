@@ -294,6 +294,10 @@ impl SourceCodeCommand {
                 opcode: Opcode::CMP,
                 argument_type: Argument::parse_address,
             }),
+            "SHIFT_LEFT" => Ok(&SourceCommandMetadata {
+                opcode: Opcode::SHIFT_LEFT,
+                argument_type: Argument::parse_none,
+            }),
             "JZC" => Ok(&SourceCommandMetadata {
                 opcode: Opcode::JZC,
                 argument_type: Argument::parse_address,

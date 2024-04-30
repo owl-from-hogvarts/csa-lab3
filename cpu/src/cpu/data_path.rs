@@ -1,4 +1,4 @@
-use isa::{CompiledCommand, MemoryItem};
+use isa::{CompiledCommand, MemoryItem, Opcode::NOP, Operand, OperandType::None};
 
 use super::TRegisterValue;
 
@@ -12,6 +12,24 @@ pub struct Registers {
     pub address: TRegisterValue,
 }
 
+impl Default for Registers {
+    fn default() -> Self {
+        Self {
+            accumulator: 0,
+            data: MemoryItem::Data(0),
+            command: CompiledCommand {
+                opcode: NOP,
+                operand: Operand {
+                    operand: 0,
+                    operand_type: None,
+                },
+            },
+            program_counter: 0,
+            address: 0,
+        }
+    }
+}
+
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
 pub struct ALU_Config {
@@ -21,6 +39,7 @@ pub struct ALU_Config {
     pub NOT_LEFT: bool,
     pub NOT_RIGHT: bool,
     pub INC: bool,
+    pub SHIFT_LEFT: bool,
 }
 
 #[allow(non_camel_case_types)]
@@ -39,6 +58,7 @@ pub fn ALU(
         NOT_LEFT,
         NOT_RIGHT,
         INC,
+        SHIFT_LEFT,
     }: ALU_Config,
 ) -> ALU_Output {
     if NOT_LEFT {
@@ -57,6 +77,10 @@ pub fn ALU(
 
     if INC {
         value += 1;
+    }
+
+    if SHIFT_LEFT {
+        value <<= value;
     }
 
     let zero = value == 0;
