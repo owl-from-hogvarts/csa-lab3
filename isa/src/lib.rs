@@ -1,14 +1,19 @@
 use core::panic;
+use std::mem::size_of;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 pub const START_ADDRESS: RawOperand = 0x10;
+// index to length convertion
+pub const MEMORY_SIZE: usize = RawAddress::MAX as usize + 1;
+pub const MEMORY_DATA_CELL_SIZE: usize = size_of::<MemoryDataType>();
 
+pub type MemoryDataType = u32;
 pub type RawOperand = u16;
 pub type RawAddress = RawOperand;
 pub type RawPort = u8;
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize, Clone, Copy)]
 pub struct Operand {
     pub operand: RawOperand,
     pub operand_type: OperandType,
@@ -17,7 +22,8 @@ pub struct Operand {
 // address
 // label, (label), !label, same with number
 
-#[derive(Clone, Copy, Serialize)]
+#[allow(non_camel_case_types)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum Opcode {
     IN,  // port
     OUT, // port
@@ -25,10 +31,11 @@ pub enum Opcode {
     LOAD,  // address
     STORE, // address
 
-    ADD, // address
-    INC, // none
-    AND, // address
-    CMP, // address
+    ADD,        // address
+    INC,        // none
+    AND,        // address
+    CMP,        // address
+    SHIFT_LEFT, // immediate
 
     JZC,  // address
     JZS,  // address
@@ -40,7 +47,7 @@ pub enum Opcode {
     HALT, // none
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum OperandType {
     None,
     Indirect,
@@ -49,28 +56,28 @@ pub enum OperandType {
     Immediate,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct CompiledCommand {
     pub opcode: Opcode,
     #[serde(flatten)]
     pub operand: Operand,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct CompiledSection {
     pub start_address: RawAddress,
     pub items: Vec<MemoryItem>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct CompiledProgram {
     pub sections: Vec<CompiledSection>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum MemoryItem {
-    Data(u32),
+    Data(MemoryDataType),
     Command(CompiledCommand),
 }
 
