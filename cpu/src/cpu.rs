@@ -45,12 +45,12 @@ impl CPU {
         loop {
             // rise
             let micro_instruction = self.microcode[self.microcode_program_counter].clone();
-            if micro_instruction.get(&Signal::HALT).is_some() {
+            if micro_instruction.contains(&Signal::HALT) {
                 break;
             }
 
-            let is_io = micro_instruction.get(&Signal::IO).is_some();
-            let is_io_write = micro_instruction.get(&Signal::WRITE_IO).is_some();
+            let is_io = micro_instruction.contains(&Signal::IO);
+            let is_io_write = micro_instruction.contains(&Signal::WRITE_IO);
             let device_address = u32::from(self.registers.data) as u8;
 
             if is_io && is_io_write {
@@ -58,22 +58,22 @@ impl CPU {
                     .write(device_address, self.registers.accumulator as u8);
             }
 
-            if micro_instruction.get(&Signal::WRITE_MEM).is_some() {
+            if micro_instruction.contains(&Signal::WRITE_MEM) {
                 self.memory[self.registers.address as usize] = self.registers.data;
             }
 
-            let left = if micro_instruction.get(&Signal::ZERO_LEFT).is_some() {
+            let left = if micro_instruction.contains(&Signal::ZERO_LEFT) {
                 0
             } else {
-                if micro_instruction.get(&Signal::SELECT_PC).is_some() {
+                if micro_instruction.contains(&Signal::SELECT_PC) {
                     self.registers.program_counter
                 } else {
                     self.registers.accumulator
                 }
             };
 
-            let right_0 = micro_instruction.get(&Signal::SELECT_RIGHT_ZERO).is_some() as u8;
-            let right_1 = (micro_instruction.get(&Signal::SELECT_RIGHT_1).is_some() as u8) << 1;
+            let right_0 = micro_instruction.contains(&Signal::SELECT_RIGHT_ZERO) as u8;
+            let right_1 = (micro_instruction.contains(&Signal::SELECT_RIGHT_1) as u8) << 1;
             let right = right_1 | right_0;
             let right = match right {
                 0b00 => self.registers.data.unwrap_data(),
@@ -86,24 +86,24 @@ impl CPU {
             let alu_config = ALU_Config {
                 left,
                 right,
-                AND: micro_instruction.get(&Signal::AND).is_some(),
-                NOT_LEFT: micro_instruction.get(&Signal::NOT_LEFT).is_some(),
-                NOT_RIGHT: micro_instruction.get(&Signal::NOT_RIGHT).is_some(),
-                INC: micro_instruction.get(&Signal::INC).is_some(),
-                SHIFT_LEFT: micro_instruction.get(&Signal::SHIFT_LEFT).is_some(),
+                AND: micro_instruction.contains(&Signal::AND),
+                NOT_LEFT: micro_instruction.contains(&Signal::NOT_LEFT),
+                NOT_RIGHT: micro_instruction.contains(&Signal::NOT_RIGHT),
+                INC: micro_instruction.contains(&Signal::INC),
+                SHIFT_LEFT: micro_instruction.contains(&Signal::SHIFT_LEFT),
             };
 
             let alu_output = ALU(alu_config);
 
             // fall
-            if micro_instruction.get(&Signal::WRITE_STATUS).is_some() {
+            if micro_instruction.contains(&Signal::WRITE_STATUS) {
                 self.status = Status {
                     zero: alu_output.zero,
                     carry: alu_output.carry,
                 };
             }
 
-            if micro_instruction.get(&Signal::WRITE_ACCUMULATOR).is_some() {
+            if micro_instruction.contains(&Signal::WRITE_ACCUMULATOR) {
                 if is_io {
                     // no sign extension happens
                     self.registers.accumulator = self.io_controller.read(device_address) as u32;
@@ -146,7 +146,7 @@ impl CPU {
                 }
             }
 
-            if micro_instruction.get(&Signal::WRITE_COMMAND).is_some() {
+            if micro_instruction.contains(&Signal::WRITE_COMMAND) {
                 if let MemoryItem::Command(command) = self.registers.data {
                     self.registers.command = command;
                 } else {
@@ -154,8 +154,8 @@ impl CPU {
                 }
             }
 
-            let select_memory = micro_instruction.get(&Signal::SELECT_MEM).is_some();
-            if micro_instruction.get(&Signal::WRITE_DATA).is_some() {
+            let select_memory = micro_instruction.contains(&Signal::SELECT_MEM);
+            if micro_instruction.contains(&Signal::WRITE_DATA) {
                 self.registers.data = if select_memory {
                     self.memory[self.registers.address as usize]
                 } else {
@@ -163,12 +163,12 @@ impl CPU {
                 }
             }
 
-            if micro_instruction.get(&Signal::WRITE_ADDRESS).is_some() && !select_memory {
+            if micro_instruction.contains(&Signal::WRITE_ADDRESS) && !select_memory {
                 self.registers.address = alu_output.value;
             }
 
-            let mc_0 = micro_instruction.get(&Signal::SELECT_MC_0).is_some() as u8;
-            let mc_1 = (micro_instruction.get(&Signal::SELECT_MC_1).is_some() as u8) << 1;
+            let mc_0 = micro_instruction.contains(&Signal::SELECT_MC_0) as u8;
+            let mc_1 = (micro_instruction.contains(&Signal::SELECT_MC_1) as u8) << 1;
 
             let mc = mc_0 | mc_1;
             self.microcode_program_counter = match mc {
