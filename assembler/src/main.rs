@@ -9,6 +9,7 @@ use std::{
 use parser::parse_asm;
 
 mod parser;
+mod compiler;
 
 fn main() {
     match start() {

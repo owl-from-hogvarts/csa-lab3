@@ -16,8 +16,11 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 
 mod errors;
+mod address;
 
 use errors::*;
+
+use self::address::AddressWithMode;
 
 type Label = String;
 type Index = usize;
@@ -49,94 +52,12 @@ static WORD_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"[\w_]+").unwrap());
 static LABEL_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(format!(r"^{}?:", *WORD_REGEX).as_str()).unwrap());
 
-#[derive(Clone, Copy)]
-enum AddressingMode {
-    Absolute, // !number, !label
-    Relative, // number, label
-    Indirect, // (number), (label)
-}
-
-impl From<AddressingMode> for OperandType {
-    fn from(value: AddressingMode) -> Self {
-        use isa::OperandType::*;
-        match value {
-            AddressingMode::Absolute => Absolute,
-            AddressingMode::Relative => Relative,
-            AddressingMode::Indirect => Indirect,
-        }
-    }
-}
-
-#[derive(Clone)]
-enum ActualAddress {
-    RawAddress(RawAddress),
-    Label(Label),
-}
-
-#[derive(Clone)]
-struct Address {
-    mode: AddressingMode,
-    address: ActualAddress,
-}
-
-impl Address {
-    fn parse_mode(input: &str) -> Result<(AddressingMode, &str), ParsingError> {
-        if input.starts_with("!") {
-            return Ok((AddressingMode::Absolute, &input[1..]));
-        }
-
-        let start_parentheses = input.starts_with("(");
-        let ends_parentheses = input.ends_with(")");
-
-        if start_parentheses != ends_parentheses {
-            return Err(ParsingError::SyntaxError(
-                r#"Because single parentheses found present assumes Relative mode.
-                No matching parentheses was found!"#
-                    .to_string(),
-            ));
-        }
-
-        if start_parentheses && ends_parentheses {
-            return Ok((AddressingMode::Indirect, &input[1..input.len() - 2]));
-        }
-
-        return Ok((AddressingMode::Relative, input));
-    }
-
-    fn parse_address(address: &str) -> Result<ActualAddress, ParsingError> {
-        let address = address.trim();
-        if address.starts_with(|value: char| ('0'..'9').contains(&value)) {
-            // probably number
-            let address = parse_number(address)?;
-
-            return Ok(ActualAddress::RawAddress(address));
-        };
-
-        let Some(label) = WORD_REGEX.find(address) else {
-            return Err(ParsingError::CouldNotParseArgument);
-        };
-
-        Ok(ActualAddress::Label(label.as_str().to_owned()))
-    }
-}
-
-impl TryFrom<&str> for Address {
-    type Error = ParsingError;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let (mode, address) = Address::parse_mode(value)?;
-        let address = Address::parse_address(address)?;
-
-        Ok(Self { mode, address })
-    }
-}
-
 #[derive(Clone)]
 enum Argument {
     None,
     Port(RawPort),
     Immediate(RawOperand),
-    Address(Address),
+    Address(AddressWithMode),
 }
 
 impl Argument {
@@ -168,7 +89,7 @@ impl Argument {
             return Err(ParsingError::NoArgumentProvided);
         }
 
-        let address: Address = input.try_into()?;
+        let address: AddressWithMode = input.try_into()?;
 
         Ok(Argument::Address(address))
     }
@@ -368,6 +289,7 @@ impl From<(Index, RawAddress)> for RawSection {
 }
 
 struct SourceCodeSection {
+    labels: HashMap<Label, Index>,
     items: Vec<SourceCodeItem>,
     start_address: RawAddress,
 }
