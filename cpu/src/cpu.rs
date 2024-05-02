@@ -87,12 +87,12 @@ impl CPU {
                 }
             };
 
-            let right_0 = micro_instruction.contains(&Signal::SELECT_RIGHT_ZERO) as u8;
-            let right_1 = (micro_instruction.contains(&Signal::SELECT_RIGHT_1) as u8) << 1;
+            let right_0 = micro_instruction.contains(&Signal::SELECT_RIGHT_DATA) as u8;
+            let right_1 = (micro_instruction.contains(&Signal::SELECT_RIGHT_CMD_OPERAND) as u8) << 1;
             let right = right_1 | right_0;
             let right = match right {
-                0b00 => self.registers.data.unwrap_data(),
-                0b01 => 0,
+                0b00 => 0,
+                0b01 => self.registers.data.unwrap_data(),
                 0b10 => self.registers.command.operand.operand as u32,
                 0b11 => self.registers.address as u32,
                 _ => unreachable!(),
@@ -205,32 +205,32 @@ impl CPU {
         // proper way would be to introduce command formats.
         // This is too complicated for the lab, so leaving it as is
         match opcode {
-            Opcode::IN => 14,
-            Opcode::OUT => 15,
-            Opcode::LOAD => 16,
-            Opcode::STORE => 17,
-            Opcode::ADD => 19,
-            Opcode::INC => 20,
-            Opcode::AND => 21,
-            Opcode::CMP => 22,
-            Opcode::SHIFT_LEFT => 23,
-            Opcode::JZC => 24,
-            Opcode::JZS => 25,
-            Opcode::JCS => 26,
-            Opcode::JCC => 27,
-            Opcode::JUMP => 28,
+            Opcode::IN => 13,
+            Opcode::OUT => 14,
+            Opcode::LOAD => 15,
+            Opcode::STORE => 16,
+            Opcode::ADD => 18,
+            Opcode::INC => 19,
+            Opcode::AND => 20,
+            Opcode::CMP => 21,
+            Opcode::SHIFT_LEFT => 22,
+            Opcode::JZC => 23,
+            Opcode::JZS => 24,
+            Opcode::JCS => 25,
+            Opcode::JCC => 26,
+            Opcode::JUMP => 27,
             // just fetch next instruction
             Opcode::NOP => 0,
-            Opcode::HALT => 29,
+            Opcode::HALT => 28,
         }
     }
     fn operand_type_to_mc(operand: OperandType) -> MicroInstructionCounter {
         match operand {
-            OperandType::None => 4,
-            OperandType::Indirect => 10,
-            OperandType::Absolute => 6,
-            OperandType::Relative => 8,
-            OperandType::Immediate => 5,
+            OperandType::None => 3,
+            OperandType::Indirect => 9,
+            OperandType::Absolute => 5,
+            OperandType::Relative => 7,
+            OperandType::Immediate => 4,
         }
     }
 }

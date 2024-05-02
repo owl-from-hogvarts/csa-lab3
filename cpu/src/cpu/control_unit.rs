@@ -51,13 +51,14 @@ pub enum Signal {
     SELECT_PC,
 
     // RIGHT MULTIPLEXOR
-    // SELECT_RIGHT_1 SELECT_RIGHT_ZERO OUTPUT
-    // 0              0              DATA
-    // 0              1              0
-    // 1              0              CMD_OPERAND
-    // 1              1              ADDRESS
-    SELECT_RIGHT_1,
-    SELECT_RIGHT_ZERO,
+    // SELECT_RIGHT_CMD_OPERAND | SELECT_RIGHT_DATA | OUTPUT
+    // -------------------------| ----------------- | ----------
+    // 0                        | 0                 | 0
+    // 0                        | 1                 | DATA
+    // 1                        | 0                 | CMD_OPERAND
+    // 1                        | 1                 | ADDRESS
+    SELECT_RIGHT_CMD_OPERAND,
+    SELECT_RIGHT_DATA,
 
     // CONTROL UNIT
     // by default current_address + 1 happens
@@ -86,30 +87,29 @@ pub fn get_microcode() -> MicrocodeStorage {
     vec![
         // instruction fetch
         // pc -> addr
-        /* 1 */
-        mc![SELECT_PC, SELECT_RIGHT_ZERO, WRITE_ADDRESS],
+        /* 0 */
+        mc![SELECT_PC, WRITE_ADDRESS],
         // pc += 1; mem[addr] -> data
-        /* 2 */
+        /* 1 */
         mc![
             SELECT_PC,
-            SELECT_RIGHT_ZERO,
             INC,
             WRITE_PROGRAM_COUNTER,
             SELECT_MEM,
             WRITE_DATA
         ],
-        /* 3 */
+        /* 2 */
         mc![WRITE_COMMAND, SELECT_MC_1],
         // ----
 
         // operand fetch
         // none
-        /* 4 */
+        /* 3 */
         mc![SELECT_MC_0, SELECT_MC_1],
         // immediate
-        /* 5 */
+        /* 4 */
         mc![
-            SELECT_RIGHT_1,
+            SELECT_RIGHT_CMD_OPERAND,
             ZERO_LEFT,
             WRITE_DATA,
             // this is cratch. see notes on "jump" microcode
@@ -118,27 +118,27 @@ pub fn get_microcode() -> MicrocodeStorage {
             SELECT_MC_1
         ],
         // absolute
+        /* 5 */
+        mc![SELECT_RIGHT_CMD_OPERAND, ZERO_LEFT, WRITE_ADDRESS],
         /* 6 */
-        mc![SELECT_RIGHT_1, ZERO_LEFT, WRITE_ADDRESS],
-        /* 7 */
         mc![SELECT_MEM, WRITE_DATA, SELECT_MC_0, SELECT_MC_1],
         // ----
 
         // relative
+        /* 7 */
+        mc![SELECT_PC, SELECT_RIGHT_CMD_OPERAND, WRITE_ADDRESS],
         /* 8 */
-        mc![SELECT_PC, SELECT_RIGHT_1, WRITE_ADDRESS],
-        /* 9 */
         mc![SELECT_MEM, WRITE_DATA, SELECT_MC_0, SELECT_MC_1],
         // ----
 
         // indirect relative
+        /* 9 */
+        mc![SELECT_PC, SELECT_RIGHT_CMD_OPERAND, WRITE_ADDRESS],
         /* 10 */
-        mc![SELECT_PC, SELECT_RIGHT_1, WRITE_ADDRESS],
-        /* 11 */
         mc![SELECT_MEM, WRITE_DATA],
-        /* 12 */
+        /* 11 */
         mc![ZERO_LEFT, WRITE_ADDRESS],
-        /* 13 */
+        /* 12 */
         mc![SELECT_MEM, WRITE_DATA, SELECT_MC_0, SELECT_MC_1],
         // ----
 
@@ -148,51 +148,51 @@ pub fn get_microcode() -> MicrocodeStorage {
 
         // io
         // IN
-        /* 14 */
+        /* 13 */
         mc![IO, WRITE_ACCUMULATOR, SELECT_MC_0],
         // OUT
-        /* 15 */
+        /* 14 */
         mc![IO, WRITE_IO, SELECT_MC_0],
         // ----
 
         // memory
         // LOAD
-        /* 16 */
-        mc![ZERO_LEFT, WRITE_ACCUMULATOR, SELECT_MC_0],
+        /* 15 */
+        mc![ZERO_LEFT, SELECT_RIGHT_DATA, WRITE_ACCUMULATOR, SELECT_MC_0],
         // STORE
+        /* 16 */
+        mc![WRITE_DATA],
         /* 17 */
-        mc![SELECT_RIGHT_ZERO, WRITE_DATA],
-        /* 18 */
         mc![WRITE_MEM, SELECT_MC_0],
         // ----
 
         // operations
         // ADD
-        /* 19 */
-        mc![WRITE_ACCUMULATOR, WRITE_STATUS, SELECT_MC_0],
-        // INC
-        /* 20 */
+        /* 18 */
         mc![
-            SELECT_RIGHT_ZERO,
-            INC,
+            SELECT_RIGHT_DATA,
             WRITE_ACCUMULATOR,
             WRITE_STATUS,
             SELECT_MC_0
         ],
+        // INC
+        /* 19 */
+        mc![INC, WRITE_ACCUMULATOR, WRITE_STATUS, SELECT_MC_0],
         // AND
-        /* 21 */
-        mc![AND, WRITE_ACCUMULATOR, WRITE_STATUS, SELECT_MC_0],
-        // CMP
-        /* 22 */
-        mc![NOT_RIGHT, INC, WRITE_STATUS, SELECT_MC_0],
-        // SHIFT_LEFT
-        /* 23 */
+        /* 20 */
         mc![
-            SELECT_RIGHT_ZERO,
-            SHIFT_LEFT,
+            AND,
+            SELECT_RIGHT_DATA,
             WRITE_ACCUMULATOR,
+            WRITE_STATUS,
             SELECT_MC_0
         ],
+        // CMP
+        /* 21 */
+        mc![SELECT_RIGHT_DATA, NOT_RIGHT, INC, WRITE_STATUS, SELECT_MC_0],
+        // SHIFT_LEFT
+        /* 22 */
+        mc![SHIFT_LEFT, WRITE_ACCUMULATOR, SELECT_MC_0],
         // ----
 
         // jumps
@@ -209,49 +209,49 @@ pub fn get_microcode() -> MicrocodeStorage {
         // with immediate value
 
         // JZC
-        /* 24 */
+        /* 23 */
         mc![
             ZERO_LEFT,
-            SELECT_RIGHT_1,
-            SELECT_RIGHT_ZERO,
+            SELECT_RIGHT_CMD_OPERAND,
+            SELECT_RIGHT_DATA,
             WRITE_PROGRAM_COUNTER_Z,
             WRITE_PROGRAM_COUNTER_CLEAR,
             SELECT_MC_0
         ],
         // JZS
-        /* 25 */
+        /* 24 */
         mc![
             ZERO_LEFT,
-            SELECT_RIGHT_1,
-            SELECT_RIGHT_ZERO,
+            SELECT_RIGHT_CMD_OPERAND,
+            SELECT_RIGHT_DATA,
             WRITE_PROGRAM_COUNTER_Z,
             SELECT_MC_0
         ],
         // JCC
-        /* 26 */
+        /* 25 */
         mc![
             ZERO_LEFT,
-            SELECT_RIGHT_1,
-            SELECT_RIGHT_ZERO,
+            SELECT_RIGHT_CMD_OPERAND,
+            SELECT_RIGHT_DATA,
             WRITE_PROGRAM_COUNTER_C,
             WRITE_PROGRAM_COUNTER_CLEAR,
             SELECT_MC_0
         ],
         // JCS
-        /* 27 */
+        /* 26 */
         mc![
             ZERO_LEFT,
-            SELECT_RIGHT_1,
-            SELECT_RIGHT_ZERO,
+            SELECT_RIGHT_CMD_OPERAND,
+            SELECT_RIGHT_DATA,
             WRITE_PROGRAM_COUNTER_C,
             SELECT_MC_0
         ],
         // JUMP
-        /* 28 */
+        /* 27 */
         mc![
             ZERO_LEFT,
-            SELECT_RIGHT_1,
-            SELECT_RIGHT_ZERO,
+            SELECT_RIGHT_CMD_OPERAND,
+            SELECT_RIGHT_DATA,
             WRITE_PROGRAM_COUNTER,
             SELECT_MC_0
         ],
@@ -259,7 +259,7 @@ pub fn get_microcode() -> MicrocodeStorage {
         // well do nothing
 
         // HALT
-        /* 29 */
+        /* 28 */
         mc![HALT, SELECT_MC_0],
     ]
 }
