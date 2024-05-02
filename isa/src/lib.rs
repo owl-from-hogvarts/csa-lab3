@@ -69,6 +69,15 @@ pub struct CompiledSection {
     pub items: Vec<MemoryItem>,
 }
 
+impl CompiledSection {
+    pub fn with_address(address: RawAddress) -> Self {
+        Self {
+            start_address: address,
+            items: Vec::new(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct CompiledProgram {
     pub sections: Vec<CompiledSection>,

@@ -1,12 +1,13 @@
-use std::{error::Error, fmt::Display, num::ParseIntError, ops::Range};
+use std::{error::Error, fmt::Display, ops::Range};
 
-use super::Label;
+use super::{token::TokenStreamError, Label};
 
 #[derive(Debug)]
 pub enum ParsingError {
     UnknownCommand(String),
     NoArgumentProvided,
-    SyntaxError(String),
+    TokenError(TokenStreamError),
+    Other(String),
     CouldNotParseArgument,
     MultipleDefinitions(Label),
 }
@@ -18,18 +19,19 @@ impl Display for ParsingError {
             ParsingError::NoArgumentProvided => {
                 writeln!(f, "Argument expected! No argument provided!")
             }
-            ParsingError::SyntaxError(err) => writeln!(f, "Syntax error: {}", err),
+            ParsingError::Other(err) => writeln!(f, "Syntax error: {}", err),
             ParsingError::CouldNotParseArgument => writeln!(f, "Could not parse argument!"),
             ParsingError::MultipleDefinitions(label) => {
                 writeln!(f, "Label {label} defined multiple times!")
             }
+            ParsingError::TokenError(token) => writeln!(f, "{token}"),
         }
     }
 }
 
-impl From<ParseIntError> for ParsingError {
-    fn from(value: ParseIntError) -> Self {
-        Self::SyntaxError(value.to_string())
+impl From<TokenStreamError> for ParsingError {
+    fn from(value: TokenStreamError) -> Self {
+        Self::TokenError(value)
     }
 }
 

@@ -21,15 +21,16 @@ fn main() {
 fn start() -> Result<(), Box<dyn Error>> {
     let config = parse_cli_args()?;
 
-    let input_srting = fs::read_to_string(config.input_file)?;
+    let input_string = fs::read_to_string(config.input_file)?;
 
-    let parsed_program = parse_asm(input_srting)?;
+    let parsed_program = parse_asm(input_string)?;
 
     let compiled = parsed_program.compile()?;
 
     let output_file = OpenOptions::new()
         .create(true)
         .write(true)
+        .truncate(true)
         .open(config.output_file)?;
 
     Ok(serde_json::to_writer(output_file, &compiled)?)

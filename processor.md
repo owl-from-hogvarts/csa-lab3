@@ -30,6 +30,7 @@ INC
 AND (to check for even values by applying 0x1 mask)
 ANDI
 CMP
+SHIFT_LEFT
 
 JZC, JZ
 JZS

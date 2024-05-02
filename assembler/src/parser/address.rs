@@ -1,6 +1,6 @@
 use isa::{OperandType, RawAddress};
 
-use super::{parse_number, Label, ParsingError, WORD_REGEX};
+use super::{token::TokenStream, Label, ParsingError};
 
 #[derive(Clone, Copy)]
 pub enum AddressingMode {
@@ -29,21 +29,21 @@ pub enum Reference {
 
 #[derive(Clone)]
 pub struct AddressWithMode {
-    mode: AddressingMode,
-    address: Reference,
+    pub mode: AddressingMode,
+    pub address: Reference,
 }
 
 impl AddressWithMode {
-    fn parse_mode(input: &str) -> Result<(AddressingMode, &str), ParsingError> {
-        if input.starts_with("!") {
-            return Ok((AddressingMode::Absolute, &input[1..]));
+    fn parse_mode(stream: &mut TokenStream) -> Result<AddressingMode, ParsingError> {
+        if stream.next_special_symbol('!').is_ok() {
+            return Ok(AddressingMode::Absolute);
         }
 
-        let start_parentheses = input.starts_with("(");
-        let ends_parentheses = input.ends_with(")");
+        let start_parentheses = stream.next_special_symbol('(').is_ok();
+        let ends_parentheses = stream.peek(2)?.is_special_symbol(')');
 
         if start_parentheses != ends_parentheses {
-            return Err(ParsingError::SyntaxError(
+            return Err(ParsingError::Other(
                 r#"Because single parentheses found present assumes Relative mode.
                 No matching parentheses was found!"#
                     .to_string(),
@@ -51,35 +51,31 @@ impl AddressWithMode {
         }
 
         if start_parentheses && ends_parentheses {
-            return Ok((AddressingMode::Indirect, &input[1..input.len() - 2]));
+            return Ok(AddressingMode::Indirect);
         }
 
-        return Ok((AddressingMode::Relative, input));
+        return Ok(AddressingMode::Relative);
     }
 
-    fn parse_address(address: &str) -> Result<Reference, ParsingError> {
-        let address = address.trim();
-        if address.starts_with(|value: char| ('0'..'9').contains(&value)) {
-            // probably number
-            let address = parse_number(address)?;
-
+    fn parse_address(stream: &mut TokenStream) -> Result<Reference, ParsingError> {
+        if let Ok(address) = stream.next_number() {
             return Ok(Reference::RawAddress(address));
         };
 
-        let Some(label) = WORD_REGEX.find(address) else {
-            return Err(ParsingError::CouldNotParseArgument);
-        };
+        let label = stream
+            .next_word()
+            .map_err(|_| ParsingError::CouldNotParseArgument)?;
 
-        Ok(Reference::Label(label.as_str().to_owned()))
+        Ok(Reference::Label(label.clone()))
     }
 }
 
-impl TryFrom<&str> for AddressWithMode {
+impl TryFrom<&mut TokenStream> for AddressWithMode {
     type Error = ParsingError;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let (mode, address) = AddressWithMode::parse_mode(value)?;
-        let address = AddressWithMode::parse_address(address)?;
+    fn try_from(stream: &mut TokenStream) -> Result<Self, Self::Error> {
+        let mode = AddressWithMode::parse_mode(stream)?;
+        let address = AddressWithMode::parse_address(stream)?;
 
         Ok(Self { mode, address })
     }

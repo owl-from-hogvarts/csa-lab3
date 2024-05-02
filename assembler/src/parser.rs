@@ -1,56 +1,36 @@
-use std::{collections::HashMap, str::FromStr};
+use std::collections::HashMap;
 
-use isa::CompiledCommand;
-use isa::CompiledProgram;
-use isa::CompiledSection;
-use isa::MemoryItem;
 use isa::Opcode;
 use isa::Operand;
 use isa::OperandType;
 use isa::RawAddress;
 use isa::RawOperand;
 use isa::RawPort;
+use isa::{CompiledCommand, CompiledSection};
+use isa::{CompiledProgram, MemoryItem};
 
-use num::{Integer, Num};
-use once_cell::sync::Lazy;
-use regex::Regex;
+use num::ToPrimitive;
 
-mod errors;
 mod address;
+mod errors;
+mod token;
 
 use errors::*;
 
+use crate::parser::address::AddressingMode;
+use crate::parser::address::Reference;
+
 use self::address::AddressWithMode;
+use self::token::Token;
+use self::token::TokenStream;
 
 type Label = String;
 type Index = usize;
 
-type RawSections = HashMap<Index, RawAddress>;
 type ResolvedLabels = HashMap<Label, RawAddress>;
 
 // argument notion is related to source code
 // while operand is all about compiled representation
-
-// let's bring in notion of sections
-// then, to resolve actual address of label we need to figure out
-// to which section it does belong.
-// after doing so, section start + relative offset to command gives
-// actual command address.
-// Word produces new section.
-// labels -> address
-// sections: index -> address
-// when resolving label usage within command
-// two components are required: command address and label address
-// Label address is known at parsing time.
-// As commands are considered to be a part of section,
-// they obtain theirs address as (section start + (command_index - section_index))
-// this
-
-static NUMBER_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^(?P<prefix>0[xb])?(?P<number>[\dabcdef_]+)$").unwrap());
-static WORD_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"[\w_]+").unwrap());
-static LABEL_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(format!(r"^{}?:", *WORD_REGEX).as_str()).unwrap());
 
 #[derive(Clone)]
 enum Argument {
@@ -61,35 +41,27 @@ enum Argument {
 }
 
 impl Argument {
-    fn parse_none(_input: &str) -> Result<Argument, ParsingError> {
+    fn parse_none(stream: &mut TokenStream) -> Result<Argument, ParsingError> {
+        stream.next_end_of_input()?;
         Ok(Argument::None)
     }
 
-    fn parse_port(input: &str) -> Result<Argument, ParsingError> {
-        let input = input.trim();
-        if input.is_empty() {
-            return Err(ParsingError::NoArgumentProvided);
-        }
+    fn parse_port(stream: &mut TokenStream) -> Result<Argument, ParsingError> {
+        let port_number = stream.next_number()?;
 
-        Ok(Argument::Port(parse_number(input)?))
+        Ok(Argument::Port(
+            port_number
+                .to_u8()
+                .ok_or(ParsingError::CouldNotParseArgument)?,
+        ))
     }
 
-    fn parse_immediate(input: &str) -> Result<Argument, ParsingError> {
-        let input = input.trim();
-        if input.is_empty() {
-            return Err(ParsingError::NoArgumentProvided);
-        }
-
-        Ok(Argument::Immediate(parse_number(input)?))
+    fn parse_immediate(stream: &mut TokenStream) -> Result<Argument, ParsingError> {
+        Ok(Argument::Immediate(stream.next_number()?))
     }
 
-    fn parse_address(input: &str) -> Result<Argument, ParsingError> {
-        let input = input.trim();
-        if input.is_empty() {
-            return Err(ParsingError::NoArgumentProvided);
-        }
-
-        let address: AddressWithMode = input.try_into()?;
+    fn parse_address(stream: &mut TokenStream) -> Result<Argument, ParsingError> {
+        let address: AddressWithMode = stream.try_into()?;
 
         Ok(Argument::Address(address))
     }
@@ -116,8 +88,8 @@ impl Argument {
             Argument::Address(address) => {
                 let actual_address =
                     match &address.address {
-                        &ActualAddress::RawAddress(address) => address,
-                        ActualAddress::Label(label) => labels.get(label).copied().ok_or(
+                        &Reference::RawAddress(address) => address,
+                        Reference::Label(label) => labels.get(label).copied().ok_or(
                             CompilationError::LabelDoesNotExists {
                                 label: label.clone(),
                             },
@@ -142,13 +114,70 @@ impl Argument {
 
 struct SourceCommandMetadata {
     opcode: Opcode,
-    argument_type: fn(&str) -> Result<Argument, ParsingError>,
+    argument_type: fn(&mut TokenStream) -> Result<Argument, ParsingError>,
+}
+
+#[derive(Clone)]
+enum CompilerDirective {
+    Data(Vec<u32>),
+    SetAddress(RawAddress),
+}
+
+impl CompilerDirective {
+    fn from_token_stream(
+        stream: &mut TokenStream,
+    ) -> Result<Option<Self>, ParsingError> {
+        if let Token::Word(command) = stream.peek(1)? {
+            match command.to_uppercase().as_str() {
+                "WORD" => {
+                    // advance stream on match only
+                    stream.next_word()?;
+                    let mut data = Vec::new();
+                    while let Ok(number) = stream.next_number() {
+                        data.push(number as u32);
+                    }
+    
+                    // ensure that no unparsed input left
+                    stream.next_end_of_input()?;
+    
+                    return Ok(Some(Self::Data(data)));
+                }
+                "ORG" => {
+                    stream.next_word()?;
+                    let address = stream.next_number()?;
+    
+                    return Ok(Some(Self::SetAddress(address)));
+                }
+                _ => return Ok(None),
+            };
+            
+            
+        }
+
+        Ok(None)
+    }
 }
 
 #[derive(Clone)]
 enum SourceCodeItem {
-    Data(u32),
     Command(SourceCodeCommand),
+    CompilerDirective(CompilerDirective),
+}
+
+impl SourceCodeItem {
+    // returns size of an item in the memory of target architecture
+    pub fn size(&self) -> RawAddress {
+        match self {
+            SourceCodeItem::Command(_) => 1,
+            SourceCodeItem::CompilerDirective(directive) => match directive {
+                CompilerDirective::Data(data) => data
+                    .len()
+                    .try_into()
+                    .expect("Too big data item! It won't fit into cpu's memory"),
+                CompilerDirective::SetAddress(_) => 0,
+            },
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -157,18 +186,14 @@ struct SourceCodeCommand {
     argument: Argument,
 }
 
-impl FromStr for SourceCodeCommand {
-    type Err = ParsingError;
+impl SourceCodeCommand {
+    fn from_token_stream(
+        stream: &mut TokenStream,
+    ) -> Result<Self, ParsingError> {
+        let opcode = stream.next_word()?;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let s = s.trim();
-        let opcode_match = WORD_REGEX
-            .find(s)
-            .expect("Non empty line with at least one word");
-
-        let metadata = Self::get_metadata_by_opcode(opcode_match.as_str())?;
-        let remainder = &s[opcode_match.end()..];
-        let argument = (metadata.argument_type)(remainder)?;
+        let metadata = Self::get_metadata_by_opcode(opcode.as_str())?;
+        let argument = (metadata.argument_type)(stream)?;
 
         Ok(SourceCodeCommand { metadata, argument })
     }
@@ -273,94 +298,131 @@ impl SourceCodeCommand {
     }
 }
 
-#[derive(Clone, Copy)]
-struct RawSection {
-    start_index: Index,
-    start_address: RawAddress,
+struct AddressIterator<T> {
+    items: T,
+    next_address: RawAddress,
+    next_index_to_consume: usize,
 }
 
-impl From<(Index, RawAddress)> for RawSection {
-    fn from(value: (Index, RawAddress)) -> Self {
+impl<'a> AddressIterator<std::slice::Iter<'a, SourceCodeItem>> {
+    fn new(items: &'a Vec<SourceCodeItem>) -> Self {
         Self {
-            start_index: value.0,
-            start_address: value.1,
+            items: items.iter(),
+            next_address: 0,
+            next_index_to_consume: 0,
         }
+    }
+
+    /// Consumes n elements from the very start of original iterator
+    fn nth_form_start(&mut self, n: usize) -> Option<<Self as Iterator>::Item> {
+        assert!(n >= self.next_index_to_consume, "can't go backward!");
+        let advance_by = n - self.next_index_to_consume;
+
+        self.nth(advance_by)
     }
 }
 
-struct SourceCodeSection {
-    labels: HashMap<Label, Index>,
-    items: Vec<SourceCodeItem>,
-    start_address: RawAddress,
+impl<'a, T: Iterator<Item = &'a SourceCodeItem>> Iterator for AddressIterator<T> {
+    type Item = (RawAddress, &'a SourceCodeItem);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // item -> address
+        let item = self.items.next()?;
+        let mut current_address = self.next_address;
+        self.next_index_to_consume += 1;
+
+        self.next_address = if let &SourceCodeItem::CompilerDirective(
+            CompilerDirective::SetAddress(address),
+        ) = item
+        {
+            // this directive is zero sized
+            // so it sort of lies at the same memory address
+            // as next element
+            current_address = address;
+            current_address
+        } else {
+            self.next_address + item.size()
+        };
+
+        Some((current_address, item))
+    }
 }
 
+#[derive(Default)]
 pub struct ParsedProgram {
+    labels: HashMap<Label, Index>,
     items: Vec<SourceCodeItem>,
-    labels: ResolvedLabels,
-    raw_sections: RawSections,
 }
 
 impl ParsedProgram {
+    fn has_label(&self, label: &Label) -> bool {
+        self.labels.contains_key(label)
+    }
+
+    fn insert_label(&mut self, label: Label) -> Result<(), ParsingError> {
+        if self.has_label(&label) {
+            return Err(ParsingError::MultipleDefinitions(label));
+        }
+
+        self.labels.insert(label, self.items.len());
+        return Ok(());
+    }
+
+    fn addresses(items: &Vec<SourceCodeItem>) -> AddressIterator<std::slice::Iter<SourceCodeItem>> {
+        AddressIterator::new(items)
+    }
+
     pub fn compile(self) -> Result<CompiledProgram, CompilationError> {
-        let mut raw_sections: Vec<RawSection> =
-            self.raw_sections.into_iter().map(|v| v.into()).collect();
+        // RESOLVE LABELS
 
-        raw_sections.sort_unstable_by_key(|elem| elem.start_index);
+        let mut labels: Vec<(Label, Index)> = self.labels.into_iter().collect();
+        // sorting is required to NOT go back in indexes which labels points to.
+        labels.sort_by_key(|&(_, index)| index);
 
-        let items = self.items;
+        let mut resolved_labels: ResolvedLabels = ResolvedLabels::new();
+        let mut addresses = ParsedProgram::addresses(&self.items);
 
-        let mut sections: Vec<SourceCodeSection> = Vec::new();
-        sections.reserve(raw_sections.len());
-
-        for section in raw_sections.windows(2) {
-            let current = section[0];
-            let next = section[1];
-            let items = &items[current.start_index..next.start_index];
-
-            let actual_size = items.len();
-            if actual_size > (next.start_address - current.start_address).into() {
-                return Err(CompilationError::SectionTooLarge {
-                    address_span: (current.start_address..next.start_address),
-                    actual_size,
-                });
-            }
-
-            let items = Vec::from(items);
-            sections.push(SourceCodeSection {
-                items,
-                start_address: current.start_address,
-            })
+        for (label, label_index) in labels {
+            let (resolved_address, _) = addresses
+                .nth_form_start(label_index)
+                // this should be impossible, since labels always points to items
+                // and items are neither removed nor inserted after parsing
+                .expect("labels points OUT of program!");
+            resolved_labels.insert(label, resolved_address);
         }
 
-        let mut program = CompiledProgram {
-            sections: Vec::new(),
-        };
-        program.sections.reserve(sections.len());
+        // compile and distribute commands among sections
+        let mut sections: Vec<CompiledSection> = Vec::new();
+        // base section
+        sections.push(CompiledSection::with_address(0));
 
-        for source_section in sections {
-            let mut compiled_section = CompiledSection {
-                start_address: source_section.start_address,
-                items: Vec::new(),
-            };
-            compiled_section.items.reserve(source_section.items.len());
+        // create sections from ORG commands
+        // distribute items among sections
+        for (current_address, item) in ParsedProgram::addresses(&self.items) {
+            let current_section = sections
+                .last_mut()
+                .expect("At least default section must be present");
 
-            for (offset, item) in source_section.items.iter().enumerate() {
-                // +1 as PC for current command already points to next command
-                let item_address = source_section.start_address + offset as u16 + 1;
-                let memory_item = match item {
-                    &SourceCodeItem::Data(data) => MemoryItem::Data(data),
-                    SourceCodeItem::Command(command) => {
-                        MemoryItem::Command(command.compile(&self.labels, item_address)?)
+            match item {
+                SourceCodeItem::CompilerDirective(directive) => match directive {
+                    CompilerDirective::SetAddress(address) => {
+                        sections.push(CompiledSection::with_address(*address));
+                        continue;
                     }
-                };
-
-                compiled_section.items.push(memory_item);
-            }
-
-            program.sections.push(compiled_section);
+                    CompilerDirective::Data(data) => data
+                        .into_iter()
+                        .map(|&byte| MemoryItem::Data(byte as u32))
+                        .for_each(|item| current_section.items.push(item)),
+                },
+                SourceCodeItem::Command(command) => {
+                    let memory_item =
+                        MemoryItem::Command(command.compile(&resolved_labels, current_address)?);
+                    current_section.items.push(memory_item);
+                }
+            };
         }
 
-        Ok(program)
+        Ok(CompiledProgram { sections })
     }
 }
 
@@ -378,104 +440,55 @@ pub fn parse_asm(input: impl AsRef<str>) -> Result<ParsedProgram, ParsingErrorOn
         })
         .map(|line| line.trim());
 
-    let mut labels: ResolvedLabels = ResolvedLabels::new();
-    let mut items: Vec<SourceCodeItem> = Vec::new();
-    let mut raw_sections = RawSections::new();
-    // first command may lie on first address
-    raw_sections.insert(0, 0x0);
+    let mut program = ParsedProgram::default();
 
-    let mut current_address: RawAddress = 0x0;
-
-    for (line_number, line) in lines.enumerate() {
-        let line_number = line_number + 1;
-        let maybe_label = LABEL_REGEX.find(line);
-
-        let start = maybe_label.map_or(0, |label_match| label_match.end());
-        let command_string = &line[start..].trim();
-
-        let mut command_processed = false;
-        if command_string.to_uppercase().starts_with("ORG") {
-            let address = command_string[3..].trim();
-            let address: RawAddress =
-                parse_number(address).map_err(|err: <RawAddress as Num>::FromStrRadixErr| {
-                    ParsingErrorOnLine {
-                        error: err.into(),
-                        line_number,
-                    }
-                })?;
-            current_address = address;
-            raw_sections.insert(items.len(), current_address);
-            command_processed = true;
-        }
-
-        // order is important!
-        // label points to the address past an ORG command
-        // but to the start of a WORD
-        if let Some(label) = maybe_label {
-            let label = label.as_str()[..label.end() - 1].to_owned();
-            if labels.contains_key(&label) {
-                return Err(ParsingErrorOnLine {
-                    error: ParsingError::MultipleDefinitions(label),
-                    line_number,
-                });
-            }
-            labels.insert(label, current_address);
-            if command_processed {
-                continue;
-            }
-        }
-
-        if command_string.to_uppercase().starts_with("WORD") {
-            let argument: u32 = match parse_number(command_string[4..].trim()) {
-                Ok(argument) => argument,
-                Err(err) => {
-                    return Err(ParsingErrorOnLine {
-                        error: err.into(),
-                        line_number,
-                    })
-                }
-            };
-
-            current_address += 1;
-            items.push(SourceCodeItem::Data(argument));
-            continue;
-        }
-
-        if command_string.is_empty() {
-            continue;
-        }
-
-        match SourceCodeCommand::from_str(command_string) {
-            Ok(command) => items.push(SourceCodeItem::Command(command)),
-            Err(error) => return Err(ParsingErrorOnLine { error, line_number }),
-        }
-
-        current_address += 1;
+    for (line_index, line) in lines.enumerate() {
+        let line_number = line_index + 1;
+        process_line(line, &mut program)
+            .map_err(|error| ParsingErrorOnLine { error, line_number })?;
     }
 
-    raw_sections.insert(items.len(), current_address);
-
-    Ok(ParsedProgram {
-        items,
-        labels,
-        raw_sections,
-    })
+    Ok(program)
 }
 
-fn parse_number<T: Integer>(input: &str) -> Result<T, <T as Num>::FromStrRadixErr> {
-    let parsed = NUMBER_REGEX
-        .captures(input)
-        .expect(format!("Number expected! Received {input}").as_str());
+// this function is required to easily convert parsing error
+// into parsing error on line
+fn process_line(line: &str, program: &mut ParsedProgram) -> Result<(), ParsingError> {
+    let mut tokens: TokenStream = line.parse()?;
 
-    let prefix = parsed.name("prefix").map_or("", |matched| matched.as_str());
-    let value = &parsed["number"];
+    // line: statement "\n" | "\n"
+    // statement: label | command | labeled_statement
+    // labeled_statement: label command
+    // command: word ???
+    // label: word ":"
 
-    let value = value.replace("_", "");
-    let radix = match prefix {
-        "0x" => 16,
-        "0b" => 2,
-        _ => 10,
-    };
+    // parse label
+    const LABEL_DELIMITER: char = ':';
+    if let Ok(&Token::SpecialSymbol(LABEL_DELIMITER)) = tokens.peek(2) {
+        let label = tokens.next_word()?;
+        // consume label delimiter
+        tokens
+            .next_special_symbol(LABEL_DELIMITER)
+            .expect("already checked with peek");
+        program.insert_label(label.clone())?;
+    }
 
-    T::from_str_radix(&value, radix)
+    // just label or empty line
+    if tokens.next_end_of_input().is_ok() {
+        return Ok(());
+    }
+
+    let compiler_directive =
+        CompilerDirective::from_token_stream(&mut tokens)?;
+    if let Some(directive) = compiler_directive {
+        program
+            .items
+            .push(SourceCodeItem::CompilerDirective(directive));
+        return Ok(());
+    }
+
+    let command = SourceCodeCommand::from_token_stream(&mut tokens)?;
+    program.items.push(SourceCodeItem::Command(command));
+
+    return Ok(());
 }
