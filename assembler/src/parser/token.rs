@@ -54,8 +54,8 @@ impl FromStr for TokenStream {
         let mut indexes = s.char_indices().peekable();
 
         // index is byte offset therefore len usage is valid
-        while let Some(&(index, symbol)) = indexes.peek() {
-            if let Some(found) = WORD_REGEX.find(&s[index..]) {
+        while let Some(&(start, symbol)) = indexes.peek() {
+            if let Some(found) = WORD_REGEX.find_at(s, start) {
                 token_stream
                     .tokens
                     .push(Token::Word(found.as_str().to_owned()));
@@ -63,22 +63,22 @@ impl FromStr for TokenStream {
                 // take_while moves iterator while returning iterator
                 // with type which is incompatible with typeof `indexes`
                 // -1 to NOT consume "past the end" element
-                indexes.find(|&(actual, _)| actual == index + found.len() - 1);
+                indexes.find(|&(actual, _)| actual == start + found.len() - 1);
                 continue;
             }
 
-            if let Some((number, length)) = parse_number(&s[index..]) {
+            if let Some((number, length)) = parse_number_at(s, start) {
                 token_stream.tokens.push(Token::Number(number));
 
-                indexes.find(|&(actual, _)| actual == index + length - 1);
+                indexes.find(|&(actual, _)| actual == start + length - 1);
                 continue;
             }
 
             // long numbers
-            if let Some((number, length)) = parse_number(&s[index..]) {
+            if let Some((number, length)) = parse_number_at(s, start) {
                 token_stream.tokens.push(Token::LongNumber(number));
 
-                indexes.find(|&(actual, _)| actual == index + length - 1);
+                indexes.find(|&(actual, _)| actual == start + length - 1);
                 continue;
             }
 
@@ -172,9 +172,9 @@ impl TokenStream {
 // default number parser does not provide useful information anyway
 // conversion of associated `FromStrRadix` type is hard or even impossible
 // due to conflicting implementation of <T> From<T> for T
-fn parse_number<T: Integer>(input: &str) -> Option<(T, usize)> {
+fn parse_number_at<T: Integer>(input: &str, start: usize) -> Option<(T, usize)> {
     let parsed = NUMBER_REGEX
-        .captures(input)?;
+        .captures_at(input, start)?;
 
     let prefix = parsed.name("prefix").map_or("", |matched| matched.as_str());
     let value = &parsed["number"];
