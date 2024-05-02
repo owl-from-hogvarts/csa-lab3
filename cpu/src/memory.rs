@@ -38,7 +38,9 @@ impl IndexMut<usize> for Memory {
 impl Memory {
     /// Creates empty memory
     pub fn new() -> Self {
-        Self(TMemory::with_capacity(MEMORY_SIZE))
+        let mut memory = TMemory::new();
+        memory.resize(MEMORY_SIZE, MemoryItem::Data(0));
+        Self(memory)
     }
 
     /// Creates new memory and burns program into it
