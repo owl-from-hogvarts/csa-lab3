@@ -1,8 +1,10 @@
-use std::ops::{Index, IndexMut};
+use std::{fmt::Debug, ops::{Index, IndexMut}};
 
 use isa::{CompiledProgram, CompiledSection, MemoryItem, RawAddress, MEMORY_SIZE};
 
 type TMemory = Vec<MemoryItem>;
+
+#[derive(Debug)]
 pub struct Memory(TMemory);
 
 impl Index<RawAddress> for Memory {

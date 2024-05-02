@@ -2,6 +2,7 @@ use isa::{CompiledCommand, MemoryItem, Opcode::NOP, Operand, OperandType::None};
 
 use super::TRegisterValue;
 
+#[derive(Debug)]
 pub struct Registers {
     pub accumulator: TRegisterValue,
     pub data: MemoryItem,

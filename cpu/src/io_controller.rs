@@ -10,14 +10,16 @@
 // receive buffer
 // device has logic to determine when to start outputting data
 
-use std::{collections::HashMap, io::Write, mem::size_of};
+use std::{collections::HashMap, fmt::Debug, io::Write, mem::size_of};
 
 use isa::{RawAddress, RawPort};
 
+#[derive(Debug)]
 pub struct IOController {
     devices: HashMap<RawPort, Box<dyn Device>>,
 }
 
+#[derive(Debug)]
 pub struct SimpleInputOutput {
     output: Vec<u8>,
     cursor: usize,
@@ -52,7 +54,7 @@ impl Device for SimpleInputOutput {
     }
 }
 
-pub trait Device {
+pub trait Device: Debug {
     fn read_from_device(&mut self) -> u8;
     fn write_to_device(&mut self, payload: u8);
 }

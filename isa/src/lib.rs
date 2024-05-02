@@ -4,7 +4,7 @@ use std::mem::size_of;
 use serde::{Deserialize, Serialize};
 
 pub const START_ADDRESS: RawOperand = 0x10;
-// index to length convertion
+// index to length conversion
 pub const MEMORY_SIZE: usize = RawAddress::MAX as usize + 1;
 pub const MEMORY_DATA_CELL_SIZE: usize = size_of::<MemoryDataType>();
 
@@ -13,7 +13,7 @@ pub type RawOperand = u16;
 pub type RawAddress = RawOperand;
 pub type RawPort = u8;
 
-#[derive(Deserialize, Serialize, Clone, Copy)]
+#[derive(Deserialize, Serialize, Clone, Copy, Debug)]
 pub struct Operand {
     pub operand: RawOperand,
     pub operand_type: OperandType,
@@ -23,7 +23,7 @@ pub struct Operand {
 // label, (label), !label, same with number
 
 #[allow(non_camel_case_types)]
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub enum Opcode {
     IN,  // port
     OUT, // port
@@ -47,7 +47,7 @@ pub enum Opcode {
     HALT, // none
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub enum OperandType {
     None,
     Indirect,
@@ -56,7 +56,7 @@ pub enum OperandType {
     Immediate,
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub struct CompiledCommand {
     pub opcode: Opcode,
     #[serde(flatten)]
@@ -83,7 +83,7 @@ pub struct CompiledProgram {
     pub sections: Vec<CompiledSection>,
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 #[serde(untagged)]
 pub enum MemoryItem {
     Data(MemoryDataType),

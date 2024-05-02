@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use isa::{MemoryItem, Opcode, OperandType};
 
 use crate::{io_controller::IOController, memory::Memory};
@@ -25,6 +27,17 @@ pub struct CPU {
     microcode_program_counter: MicroInstructionCounter,
 }
 
+impl Debug for CPU {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CPU")
+            .field("io_controller", &self.io_controller)
+            .field("registers", &self.registers)
+            .field("status", &self.status)
+            .field("microcode_program_counter", &self.microcode_program_counter)
+            .finish()
+    }
+}
+
 impl CPU {
     pub fn new(memory: Memory, io_controller: IOController) -> Self {
         Self {
@@ -43,6 +56,8 @@ impl CPU {
 
     pub fn start(mut self) {
         loop {
+            println!("{:#?}", self);
+            println!("{:-<80}", "");
             // rise
             let micro_instruction = self.microcode[self.microcode_program_counter].clone();
             if micro_instruction.contains(&Signal::HALT) {

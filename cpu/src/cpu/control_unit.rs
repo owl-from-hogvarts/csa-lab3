@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use super::MicrocodeStorage;
 
 #[allow(non_camel_case_types)]
-#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum Signal {
     // enables io
     IO,
