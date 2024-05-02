@@ -137,7 +137,7 @@ pub fn get_microcode() -> MicrocodeStorage {
         /* 10 */
         mc![SELECT_MEM, WRITE_DATA],
         /* 11 */
-        mc![ZERO_LEFT, WRITE_ADDRESS],
+        mc![ZERO_LEFT, SELECT_RIGHT_DATA, WRITE_ADDRESS],
         /* 12 */
         mc![SELECT_MEM, WRITE_DATA, SELECT_MC_0, SELECT_MC_1],
         // ----
@@ -199,8 +199,8 @@ pub fn get_microcode() -> MicrocodeStorage {
         // jumps only support absolute, relative, indirect operand types
         // therefore if compiler occasionally produces jump command
         // with operand type of Immediate
-        // undefined behaviour occures!
-        // Then it's possbile vulnarability
+        // undefined behaviour occurs!
+        // Then it's possible vulnerability
 
         // solutions: for one variant see cpu.rs
 
