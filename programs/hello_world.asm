@@ -27,7 +27,7 @@ loop:
   jz break
   store current_char_ptr
   load (current_char_ptr)
-  out 1
+  out 0
   jump loop
 
 break:
