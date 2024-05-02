@@ -56,8 +56,6 @@ impl CPU {
 
     pub fn start(mut self) {
         loop {
-            println!("{:#?}", self);
-            println!("{:-<80}", "");
             // rise
             let micro_instruction = self.microcode[self.microcode_program_counter].clone();
             if micro_instruction.contains(&Signal::HALT) {
@@ -66,15 +64,17 @@ impl CPU {
 
             let is_io = micro_instruction.contains(&Signal::IO);
             let is_io_write = micro_instruction.contains(&Signal::WRITE_IO);
-            let device_address = u32::from(self.registers.data) as u8;
+            // lazy to defer access to data
+            // otherwise may access instruction by accident
+            let device_address = || u32::from(self.registers.data) as u8;
 
             if is_io && is_io_write {
                 self.io_controller
-                    .write(device_address, self.registers.accumulator as u8);
+                    .write(device_address(), self.registers.accumulator as u8);
             }
 
             if micro_instruction.contains(&Signal::WRITE_MEM) {
-                self.memory[self.registers.address as usize] = self.registers.data;
+                self.memory[self.registers.address as u16] = self.registers.data;
             }
 
             let left = if micro_instruction.contains(&Signal::ZERO_LEFT) {
@@ -121,7 +121,7 @@ impl CPU {
             if micro_instruction.contains(&Signal::WRITE_ACCUMULATOR) {
                 if is_io {
                     // no sign extension happens
-                    self.registers.accumulator = self.io_controller.read(device_address) as u32;
+                    self.registers.accumulator = self.io_controller.read(device_address()) as u32;
                 } else {
                     self.registers.accumulator = alu_output.value;
                 }
@@ -165,14 +165,14 @@ impl CPU {
                 if let MemoryItem::Command(command) = self.registers.data {
                     self.registers.command = command;
                 } else {
-                    panic!("Tryed to write binary data into command register!")
+                    panic!("Tried to write binary data into command register!")
                 }
             }
 
             let select_memory = micro_instruction.contains(&Signal::SELECT_MEM);
             if micro_instruction.contains(&Signal::WRITE_DATA) {
                 self.registers.data = if select_memory {
-                    self.memory[self.registers.address as usize]
+                    self.memory[self.registers.address as u16]
                 } else {
                     MemoryItem::Data(alu_output.value)
                 }
@@ -192,7 +192,11 @@ impl CPU {
                 0b10 => Self::operand_type_to_mc(self.registers.command.operand.operand_type),
                 0b11 => Self::opcode_to_mc(self.registers.command.opcode),
                 _ => unreachable!(),
-            }
+            };
+
+            // println!("{:#?}", self);
+            // println!("{:-<80}", "");
+            
         }
     }
 
