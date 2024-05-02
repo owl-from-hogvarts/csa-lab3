@@ -97,7 +97,11 @@ impl Argument {
                     };
                 let operand = match address.mode {
                     AddressingMode::Absolute => actual_address,
-                    AddressingMode::Relative | AddressingMode::Indirect => actual_address.overflowing_sub(current_address).0,
+                    AddressingMode::Relative | AddressingMode::Indirect => {
+                        // relative addressing mode is relative to Program Counter.
+                        // Program counter always points to the next command
+                        actual_address.overflowing_sub(current_address + 1).0
+                    }
                 };
 
                 let operand_type: OperandType = address.mode.into();
@@ -416,11 +420,14 @@ impl ParsedProgram {
                         .map(|&byte| MemoryItem::Data(byte as u32))
                         .for_each(|item| current_section.items.push(item)),
                     CompilerDirective::Pointer(label) => {
-                        current_section.items.push(MemoryItem::Data(resolved_labels.get(label).map(|&address| address as u32).ok_or(
-                            CompilationError::LabelDoesNotExists {
-                                label: label.clone(),
-                            },
-                        )?));
+                        current_section.items.push(MemoryItem::Data(
+                            resolved_labels
+                                .get(label)
+                                .map(|&address| address as u32)
+                                .ok_or(CompilationError::LabelDoesNotExists {
+                                    label: label.clone(),
+                                })?,
+                        ));
                     }
                 },
                 SourceCodeItem::Command(command) => {
