@@ -1,4 +1,4 @@
-
+jump start
 output_string:
   // length "Hello world!" 
   word 12 0x68 0x65 0x6c 0x6c 0x6f 0x20 0x77 0x6f 0x72 0x6c 0x64 0x21
@@ -28,6 +28,7 @@ loop:
   store current_char_ptr
   load (current_char_ptr)
   out 1
+  jump loop
 
 break:
   halt
