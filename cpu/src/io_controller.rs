@@ -34,8 +34,8 @@ impl SimpleInputOutput {
             .expect("Size of input string should fit into size of pointer which is 16 bits");
 
         let mut output = Vec::with_capacity(string.len() + size_of::<RawAddress>());
-        output[0..size_of::<RawAddress>()].copy_from_slice(&length.to_be_bytes());
-        output[size_of::<RawAddress>()..].copy_from_slice(string.as_bytes());
+        output.extend_from_slice(&length.to_be_bytes());
+        output.extend_from_slice(string.as_bytes());
 
         Self { output, cursor: 0 }
     }
