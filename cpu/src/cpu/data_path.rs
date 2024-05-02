@@ -73,12 +73,8 @@ pub fn ALU(
     let (mut value, carry) = if AND {
         (left & right, false)
     } else {
-        left.overflowing_add(right)
+        left.overflowing_add(right + INC as u32)
     };
-
-    if INC {
-        value += 1;
-    }
 
     if SHIFT_LEFT {
         value <<= value;
