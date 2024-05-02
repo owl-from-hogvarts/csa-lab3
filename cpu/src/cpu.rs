@@ -189,9 +189,33 @@ impl CPU {
         // after all, this is cratch too.
         // proper way would be to introduce command formats.
         // This is too complicated for the lab, so leaving it as is
-        todo!()
+        match opcode {
+            Opcode::IN => 14,
+            Opcode::OUT => 15,
+            Opcode::LOAD => 16,
+            Opcode::STORE => 17,
+            Opcode::ADD => 19,
+            Opcode::INC => 20,
+            Opcode::AND => 21,
+            Opcode::CMP => 22,
+            Opcode::SHIFT_LEFT => 23,
+            Opcode::JZC => 24,
+            Opcode::JZS => 25,
+            Opcode::JCS => 26,
+            Opcode::JCC => 27,
+            Opcode::JUMP => 28,
+            // just fetch next instruction
+            Opcode::NOP => 0,
+            Opcode::HALT => 29,
+        }
     }
     fn operand_type_to_mc(operand: OperandType) -> MicroInstructionCounter {
-        todo!()
+        match operand {
+            OperandType::None => 4,
+            OperandType::Indirect => 10,
+            OperandType::Absolute => 6,
+            OperandType::Relative => 8,
+            OperandType::Immediate => 5,
+        }
     }
 }
