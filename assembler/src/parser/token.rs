@@ -5,13 +5,14 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 
 pub static NUMBER_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^(?P<prefix>0[xb])?(?P<number>[\dabcdef_]+)$").unwrap());
+    Lazy::new(|| Regex::new(r"^(?P<prefix>0[xb])?(?P<number>[\dabcdef_]+)").unwrap());
 pub static WORD_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[_\w--[\d]]+").unwrap());
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Token {
     Word(String),
     Number(u16),
+    LongNumber(u32),
     SpecialSymbol(char),
     EndOfInput,
 }
@@ -73,6 +74,14 @@ impl FromStr for TokenStream {
                 continue;
             }
 
+            // long numbers
+            if let Some((number, length)) = parse_number(&s[index..]) {
+                token_stream.tokens.push(Token::LongNumber(number));
+
+                indexes.find(|&(actual, _)| actual == index + length - 1);
+                continue;
+            }
+
             if symbol == ' ' {
                 indexes.next();
                 continue;
@@ -113,6 +122,19 @@ impl TokenStream {
     pub fn next_number(&mut self) -> Result<u16, TokenStreamError> {
         let output = match self.peek(1) {
             Ok(&Token::Number(number)) => number,
+            Ok(token) => return Err(TokenStreamError::UnexpectedToken(token.clone())),
+            Err(err) => return Err(err),
+        };
+
+        self.advance_cursor();
+
+        Ok(output)
+    }
+
+    pub fn next_long_number(&mut self) -> Result<u32, TokenStreamError> {
+        let output = match self.peek(1) {
+            Ok(&Token::LongNumber(number)) => number,
+            Ok(&Token::Number(number)) => number as u32,
             Ok(token) => return Err(TokenStreamError::UnexpectedToken(token.clone())),
             Err(err) => return Err(err),
         };
@@ -163,6 +185,10 @@ fn parse_number<T: Integer>(input: &str) -> Option<(T, usize)> {
         "0b" => 2,
         _ => 10,
     };
+
+    if let Err(err) = T::from_str_radix(&value, radix) {
+        let _a = err;
+    }
 
     Some((
         T::from_str_radix(&value, radix).ok()?,

@@ -97,8 +97,7 @@ impl Argument {
                     };
                 let operand = match address.mode {
                     AddressingMode::Absolute => actual_address,
-                    AddressingMode::Relative => actual_address.overflowing_sub(current_address).0,
-                    AddressingMode::Indirect => actual_address - current_address,
+                    AddressingMode::Relative | AddressingMode::Indirect => actual_address.overflowing_sub(current_address).0,
                 };
 
                 let operand_type: OperandType = address.mode.into();
@@ -120,38 +119,40 @@ struct SourceCommandMetadata {
 #[derive(Clone)]
 enum CompilerDirective {
     Data(Vec<u32>),
+    Pointer(Label),
     SetAddress(RawAddress),
 }
 
 impl CompilerDirective {
-    fn from_token_stream(
-        stream: &mut TokenStream,
-    ) -> Result<Option<Self>, ParsingError> {
+    fn from_token_stream(stream: &mut TokenStream) -> Result<Option<Self>, ParsingError> {
         if let Token::Word(command) = stream.peek(1)? {
             match command.to_uppercase().as_str() {
                 "WORD" => {
                     // advance stream on match only
                     stream.next_word()?;
                     let mut data = Vec::new();
-                    while let Ok(number) = stream.next_number() {
+
+                    if let Ok(label) = stream.next_word() {
+                        return Ok(Some(Self::Pointer(label)));
+                    }
+
+                    while let Ok(number) = stream.next_long_number() {
                         data.push(number as u32);
                     }
-    
+
                     // ensure that no unparsed input left
                     stream.next_end_of_input()?;
-    
+
                     return Ok(Some(Self::Data(data)));
                 }
                 "ORG" => {
                     stream.next_word()?;
                     let address = stream.next_number()?;
-    
+
                     return Ok(Some(Self::SetAddress(address)));
                 }
                 _ => return Ok(None),
             };
-            
-            
         }
 
         Ok(None)
@@ -165,7 +166,9 @@ enum SourceCodeItem {
 }
 
 impl SourceCodeItem {
-    // returns size of an item in the memory of target architecture
+    /// returns size of an item in cells
+    ///
+    /// currently each cell is 4 bytes long that is u32
     pub fn size(&self) -> RawAddress {
         match self {
             SourceCodeItem::Command(_) => 1,
@@ -175,6 +178,7 @@ impl SourceCodeItem {
                     .try_into()
                     .expect("Too big data item! It won't fit into cpu's memory"),
                 CompilerDirective::SetAddress(_) => 0,
+                CompilerDirective::Pointer(_) => 1,
             },
         }
     }
@@ -187,9 +191,7 @@ struct SourceCodeCommand {
 }
 
 impl SourceCodeCommand {
-    fn from_token_stream(
-        stream: &mut TokenStream,
-    ) -> Result<Self, ParsingError> {
+    fn from_token_stream(stream: &mut TokenStream) -> Result<Self, ParsingError> {
         let opcode = stream.next_word()?;
 
         let metadata = Self::get_metadata_by_opcode(opcode.as_str())?;
@@ -413,6 +415,13 @@ impl ParsedProgram {
                         .into_iter()
                         .map(|&byte| MemoryItem::Data(byte as u32))
                         .for_each(|item| current_section.items.push(item)),
+                    CompilerDirective::Pointer(label) => {
+                        current_section.items.push(MemoryItem::Data(resolved_labels.get(label).map(|&address| address as u32).ok_or(
+                            CompilationError::LabelDoesNotExists {
+                                label: label.clone(),
+                            },
+                        )?));
+                    }
                 },
                 SourceCodeItem::Command(command) => {
                     let memory_item =
@@ -478,8 +487,7 @@ fn process_line(line: &str, program: &mut ParsedProgram) -> Result<(), ParsingEr
         return Ok(());
     }
 
-    let compiler_directive =
-        CompilerDirective::from_token_stream(&mut tokens)?;
+    let compiler_directive = CompilerDirective::from_token_stream(&mut tokens)?;
     if let Some(directive) = compiler_directive {
         program
             .items
