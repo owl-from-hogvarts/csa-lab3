@@ -5,7 +5,7 @@ first:
 second:
   word 2
 
-next:
+next_number:
   word 0
 
 max:
@@ -19,19 +19,19 @@ sum:
 start:
   load first
   add second
-  store next
+  store next_number
   cmp max
   jcs break
   andi 0x1 // to check for even numbers
   jzc next
   load sum
-  add next
+  add next_number
   store sum
 
 next:
   load second
   store first
-  load next
+  load next_number
   store second
   jump start
 
