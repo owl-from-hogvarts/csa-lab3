@@ -28,13 +28,13 @@ pub struct SimpleInputOutput {
 impl SimpleInputOutput {
     pub fn new(string: String) -> Self {
         // place string length beforehand
-        let length: RawAddress = string
+        let length: u8 = string
             .len()
             .try_into()
-            .expect("Size of input string should fit into size of pointer which is 16 bits");
+            .expect("Size of input string should fit into size of buffer which is 256");
 
-        let mut output = Vec::with_capacity(string.len() + size_of::<RawAddress>());
-        output.extend_from_slice(&length.to_be_bytes());
+        let mut output = Vec::with_capacity(string.len() + size_of::<u8>());
+        output.push(length);
         output.extend_from_slice(string.as_bytes());
 
         Self { output, cursor: 0 }
