@@ -250,6 +250,10 @@ impl SourceCodeCommand {
                 opcode: Opcode::SHIFT_LEFT,
                 argument_type: Argument::parse_none,
             }),
+            "SHIFT_RIGHT" => Ok(&SourceCommandMetadata {
+                opcode: Opcode::SHIFT_RIGHT,
+                argument_type: Argument::parse_none,
+            }),
             "JZC" => Ok(&SourceCommandMetadata {
                 opcode: Opcode::JZC,
                 argument_type: Argument::parse_address,

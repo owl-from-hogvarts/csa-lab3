@@ -41,6 +41,8 @@ pub enum Signal {
     INC,
 
     // Commutator
+    // by default, shifting right
+    SHIFT,
     SHIFT_LEFT,
 
     // left alu input multiplexing
@@ -192,7 +194,10 @@ pub fn get_microcode() -> MicrocodeStorage {
         mc![SELECT_RIGHT_DATA, NOT_RIGHT, INC, WRITE_STATUS, SELECT_MC_0],
         // SHIFT_LEFT
         /* 22 */
-        mc![SHIFT_LEFT, WRITE_ACCUMULATOR, SELECT_MC_0],
+        mc![SHIFT, SHIFT_LEFT, WRITE_ACCUMULATOR, SELECT_MC_0],
+        // SHIFT_RIGHT
+        /* 23 */
+        mc![SHIFT, WRITE_ACCUMULATOR, SELECT_MC_0],
         // ----
 
         // jumps
@@ -209,7 +214,7 @@ pub fn get_microcode() -> MicrocodeStorage {
         // with immediate value
 
         // JZC
-        /* 23 */
+        /* 24 */
         mc![
             ZERO_LEFT,
             SELECT_RIGHT_CMD_OPERAND,
@@ -219,7 +224,7 @@ pub fn get_microcode() -> MicrocodeStorage {
             SELECT_MC_0
         ],
         // JZS
-        /* 24 */
+        /* 25 */
         mc![
             ZERO_LEFT,
             SELECT_RIGHT_CMD_OPERAND,
@@ -228,7 +233,7 @@ pub fn get_microcode() -> MicrocodeStorage {
             SELECT_MC_0
         ],
         // JCC
-        /* 25 */
+        /* 26 */
         mc![
             ZERO_LEFT,
             SELECT_RIGHT_CMD_OPERAND,
@@ -238,7 +243,7 @@ pub fn get_microcode() -> MicrocodeStorage {
             SELECT_MC_0
         ],
         // JCS
-        /* 26 */
+        /* 27 */
         mc![
             ZERO_LEFT,
             SELECT_RIGHT_CMD_OPERAND,
@@ -247,7 +252,7 @@ pub fn get_microcode() -> MicrocodeStorage {
             SELECT_MC_0
         ],
         // JUMP
-        /* 27 */
+        /* 28 */
         mc![
             ZERO_LEFT,
             SELECT_RIGHT_CMD_OPERAND,
@@ -259,7 +264,7 @@ pub fn get_microcode() -> MicrocodeStorage {
         // well do nothing
 
         // HALT
-        /* 28 */
+        /* 29 */
         mc![HALT, SELECT_MC_0],
     ]
 }

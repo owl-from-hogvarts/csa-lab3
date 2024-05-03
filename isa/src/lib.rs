@@ -31,11 +31,12 @@ pub enum Opcode {
     LOAD,  // address
     STORE, // address
 
-    ADD,        // address
-    INC,        // none
-    AND,        // address
-    CMP,        // address
-    SHIFT_LEFT, // immediate
+    ADD,         // address
+    INC,         // none
+    AND,         // address
+    CMP,         // address
+    SHIFT_LEFT,  // immediate
+    SHIFT_RIGHT, // immediate
 
     JZC,  // address
     JZS,  // address

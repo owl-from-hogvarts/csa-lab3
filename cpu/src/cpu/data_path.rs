@@ -1,4 +1,4 @@
-use isa::{CompiledCommand, MemoryItem, Opcode::NOP, Operand, OperandType::None};
+use isa::{CompiledCommand, MemoryItem, Opcode::NOP, Operand, OperandType::None, RawAddress};
 
 use super::TRegisterValue;
 
@@ -9,8 +9,8 @@ pub struct Registers {
     // command is special register
     // it holds high level data structure
     pub command: CompiledCommand,
-    pub program_counter: TRegisterValue,
-    pub address: TRegisterValue,
+    pub program_counter: RawAddress,
+    pub address: RawAddress,
 }
 
 impl Default for Registers {
@@ -40,6 +40,7 @@ pub struct ALU_Config {
     pub NOT_LEFT: bool,
     pub NOT_RIGHT: bool,
     pub INC: bool,
+    pub SHIFT: bool,
     pub SHIFT_LEFT: bool,
 }
 
@@ -59,6 +60,7 @@ pub fn ALU(
         NOT_LEFT,
         NOT_RIGHT,
         INC,
+        SHIFT, 
         SHIFT_LEFT,
     }: ALU_Config,
 ) -> ALU_Output {
@@ -76,8 +78,12 @@ pub fn ALU(
         left.overflowing_add(right + INC as u32)
     };
 
-    if SHIFT_LEFT {
-        value <<= value;
+    if SHIFT {
+        if SHIFT_LEFT {
+            value <<= 1;
+        } else {
+            value >>= 1;
+        }
     }
 
     let zero = value == 0;

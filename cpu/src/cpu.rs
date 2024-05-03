@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use isa::{MemoryItem, Opcode, OperandType};
+use isa::{MemoryItem, Opcode, OperandType, RawAddress};
 
 use crate::{io_controller::IOController, memory::Memory};
 
@@ -74,21 +74,23 @@ impl CPU {
             }
 
             if micro_instruction.contains(&Signal::WRITE_MEM) {
-                self.memory[self.registers.address as u16] = self.registers.data;
+                self.memory[self.registers.address] = self.registers.data;
             }
 
             let left = if micro_instruction.contains(&Signal::ZERO_LEFT) {
                 0
             } else {
                 if micro_instruction.contains(&Signal::SELECT_PC) {
-                    self.registers.program_counter
+                    // no sign extension happens
+                    self.registers.program_counter as u32
                 } else {
                     self.registers.accumulator
                 }
             };
 
             let right_0 = micro_instruction.contains(&Signal::SELECT_RIGHT_DATA) as u8;
-            let right_1 = (micro_instruction.contains(&Signal::SELECT_RIGHT_CMD_OPERAND) as u8) << 1;
+            let right_1 =
+                (micro_instruction.contains(&Signal::SELECT_RIGHT_CMD_OPERAND) as u8) << 1;
             let right = right_1 | right_0;
             let right = match right {
                 0b00 => 0,
@@ -105,6 +107,7 @@ impl CPU {
                 NOT_LEFT: micro_instruction.contains(&Signal::NOT_LEFT),
                 NOT_RIGHT: micro_instruction.contains(&Signal::NOT_RIGHT),
                 INC: micro_instruction.contains(&Signal::INC),
+                SHIFT: micro_instruction.contains(&Signal::SHIFT),
                 SHIFT_LEFT: micro_instruction.contains(&Signal::SHIFT_LEFT),
             };
 
@@ -131,7 +134,7 @@ impl CPU {
                 .get(&Signal::WRITE_PROGRAM_COUNTER)
                 .is_some()
             {
-                self.registers.program_counter = alu_output.value;
+                self.registers.program_counter = alu_output.value as RawAddress;
             }
 
             let invert_flags = micro_instruction
@@ -148,7 +151,7 @@ impl CPU {
                 .is_some()
             {
                 if self.status.zero != invert_flags {
-                    self.registers.program_counter = alu_output.value;
+                    self.registers.program_counter = alu_output.value as RawAddress;
                 }
             }
 
@@ -157,7 +160,7 @@ impl CPU {
                 .is_some()
             {
                 if self.status.carry != invert_flags {
-                    self.registers.program_counter = alu_output.value;
+                    self.registers.program_counter = alu_output.value as RawAddress;
                 }
             }
 
@@ -172,14 +175,14 @@ impl CPU {
             let select_memory = micro_instruction.contains(&Signal::SELECT_MEM);
             if micro_instruction.contains(&Signal::WRITE_DATA) {
                 self.registers.data = if select_memory {
-                    self.memory[self.registers.address as u16]
+                    self.memory[self.registers.address]
                 } else {
                     MemoryItem::Data(alu_output.value)
                 }
             }
 
             if micro_instruction.contains(&Signal::WRITE_ADDRESS) && !select_memory {
-                self.registers.address = alu_output.value;
+                self.registers.address = alu_output.value as RawAddress;
             }
 
             let mc_0 = micro_instruction.contains(&Signal::SELECT_MC_0) as u8;
@@ -196,7 +199,6 @@ impl CPU {
 
             // println!("{:#?}", self);
             // println!("{:-<80}", "");
-            
         }
     }
 
@@ -218,14 +220,15 @@ impl CPU {
             Opcode::AND => 20,
             Opcode::CMP => 21,
             Opcode::SHIFT_LEFT => 22,
-            Opcode::JZC => 23,
-            Opcode::JZS => 24,
-            Opcode::JCS => 25,
+            Opcode::SHIFT_RIGHT => 23,
+            Opcode::JZC => 24,
+            Opcode::JZS => 25,
             Opcode::JCC => 26,
-            Opcode::JUMP => 27,
+            Opcode::JCS => 27,
+            Opcode::JUMP => 28,
             // just fetch next instruction
             Opcode::NOP => 0,
-            Opcode::HALT => 28,
+            Opcode::HALT => 29,
         }
     }
     fn operand_type_to_mc(operand: OperandType) -> MicroInstructionCounter {
