@@ -2,13 +2,14 @@
 jump start
 
 stop_symbol:
-  word 0x10
+  // Line Feed
+  word 0xa
 
 start: org 0x10
-  in 1
+  in 0
   cmp stop_symbol
   jz break
-  out 1
+  out 0
   jump start
 
 
