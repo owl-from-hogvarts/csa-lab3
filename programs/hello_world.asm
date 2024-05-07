@@ -32,11 +32,4 @@ loop:
 
 break:
   halt
-  
-
-
-  
-
-
-
 

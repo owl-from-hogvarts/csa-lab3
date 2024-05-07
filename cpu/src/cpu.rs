@@ -65,6 +65,8 @@ impl CPU {
     }
 
     pub fn start(mut self) {
+        let mut instructions_executed = 0;
+        let mut micro_instructions_executed = 0;
         loop {
             // rise
             let micro_instruction = self.microcode[self.microcode_program_counter].clone();
@@ -209,7 +211,14 @@ impl CPU {
                 _ => unreachable!(),
             };
 
+            if self.microcode_program_counter == 0 {
+                instructions_executed += 1;
+            }
+
+            micro_instructions_executed += 1;
         }
+
+        log::info!("Instructions: {}; MC: {}", instructions_executed, micro_instructions_executed);
     }
 
     fn opcode_to_mc(opcode: Opcode) -> MicroInstructionCounter {

@@ -58,6 +58,7 @@ asm | acc | neum | mc -> hw | tick -> instr | struct | stream | port | pstr | pr
     - [Registers](#registers)
     - [ALU](#alu)
   - [Control unit](#control-unit)
+- [Stats](#stats)
 
 
 # Language
@@ -435,3 +436,11 @@ ALU operates on two `u32` values, outputting `u32` result and optionally setting
 ![](./images/control_unit.svg)
 
 
+# Stats
+
+```
+|           Full name             | alg            | loc | bytes | instr | exec_instr | tick |                                            variant                                             |
+|Тернавский Константин Евгеньевич | hello_world    | 35  | -     | 13    | 105        | 647  | asm     | acc | neum | mc -> hw | tick -> instr | struct | stream | port | pstr | prob2 | cache|
+|Тернавский Константин Евгеньевич | hello_username | 168 | -     | 81    | 434        | 2706 | asm     | acc | neum | mc -> hw | tick -> instr | struct | stream | port | pstr | prob2 | cache|
+|Тернавский Константин Евгеньевич | prob2          | 137 | -     | 48    | 630        | 3896 | asm     | acc | neum | mc -> hw | tick -> instr | struct | stream | port | pstr | prob2 | cache|
+```
