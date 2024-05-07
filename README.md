@@ -1,5 +1,17 @@
 
 
+# Thanks
+
+Special thanks to [Zerumi Coder](https://github.com/zerumi) whose purest soul helped me on this long journey! The Guy who supported me on every tricky junction of the long night road. The Guy, who lit the way for me, who has enlighten me! 
+
+Thank you, Zerumi!
+
+Thanks to [Lanne](https://github.com/lannee) the Great, who supported the Magnificent Order of Rust!
+
+Thanks to [Local Piper](https://github.com/localPiper/) the Funniest, who didn't let me give up! His majesty supported me with marvelous jokes!
+
+Thanks to all other fellow comrades who stood with me, who fought bravely, who has won this battle!
+
 # Variant
 
 - Тернавский Константин Евгеньевич. P3206
@@ -26,6 +38,7 @@ asm | acc | neum | mc -> hw | tick -> instr | struct | stream | port | pstr | pr
 
 # Table of content
 
+- [Thanks](#thanks)
 - [Variant](#variant)
   - [Transcript](#transcript)
 - [Table of content](#table-of-content)
