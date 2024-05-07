@@ -1,2 +1,7 @@
 /target
 /programs/**/*.json
+.venv
+*.pyc
+cpu.log
+Cargo.lock
+.vscode

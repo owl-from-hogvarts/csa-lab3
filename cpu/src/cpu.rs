@@ -195,6 +195,8 @@ impl CPU {
                 self.registers.address = alu_output.value as RawAddress;
             }
 
+            log::info!("{}", self);
+
             let mc_0 = micro_instruction.contains(&Signal::SELECT_MC_0) as u8;
             let mc_1 = (micro_instruction.contains(&Signal::SELECT_MC_1) as u8) << 1;
 
@@ -207,7 +209,6 @@ impl CPU {
                 _ => unreachable!(),
             };
 
-            log::info!("{}", self);
         }
     }
 
