@@ -51,10 +51,21 @@ impl FromStr for TokenStream {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut token_stream = TokenStream::default();
-        let mut indexes = s.char_indices().peekable();
+        let mut index = 0;
+
+        // regex are utf8 aware by default
+        // so we can safely assume, that their len() + current_index
+        // always lies at a valid unicode char boundary
+        // Therefore accessing char from byte offset into string becomes trivial:
+        // string[offset..].chars().next().unwrap()
 
         // index is byte offset therefore len usage is valid
-        while let Some(&(index, symbol)) = indexes.peek() {
+        while index < s.len() {
+            // string subslicing along with `^` anchor is the official way
+            // to do match *exactly at*. This approach is advertised by developers
+            // as correct one and trivial to implement. As such, they won't 
+            // add this functionality into library's api.
+            
             // `find_at` changes starting position without stripping the string.
             // Hence, regex that has ^ anchor never match when used with `find_at`.
             // Regex without ^ anchor skips any symbols. These skipped symbols
@@ -64,18 +75,16 @@ impl FromStr for TokenStream {
                 token_stream
                     .tokens
                     .push(Token::Word(found.as_str().to_owned()));
-                // `find` consumes iterator up until the predicate succeeds
-                // take_while moves iterator while returning iterator
-                // with type which is incompatible with typeof `indexes`
-                // -1 to NOT consume "past the end" element
-                indexes.find(|&(actual, _)| actual == index + found.len() - 1);
+
+                assert!(found.len() > 0, "match should be NON-empty");
+                index += found.len();
                 continue;
             }
 
             if let Some((number, length)) = parse_number(&s[index..]) {
                 token_stream.tokens.push(Token::Number(number));
 
-                indexes.find(|&(actual, _)| actual == index + length - 1);
+                index += length;
                 continue;
             }
 
@@ -83,16 +92,18 @@ impl FromStr for TokenStream {
             if let Some((number, length)) = parse_number(&s[index..]) {
                 token_stream.tokens.push(Token::LongNumber(number));
 
-                indexes.find(|&(actual, _)| actual == index + length - 1);
+                index += length;
                 continue;
             }
 
+            let symbol = s[index..].chars().next().expect("index points to valid unicode boundary and at least one char is available");
             if symbol == ' ' {
-                indexes.next();
+                index += symbol.len_utf8();
                 continue;
             }
 
-            token_stream.tokens.push(Token::SpecialSymbol(indexes.next().unwrap().1));
+            token_stream.tokens.push(Token::SpecialSymbol(symbol));
+            index += symbol.len_utf8();
         }
 
         token_stream.tokens.push(Token::EndOfInput);
