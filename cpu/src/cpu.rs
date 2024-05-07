@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use isa::{MemoryItem, Opcode, OperandType, RawAddress};
 
@@ -37,6 +37,16 @@ impl Debug for CPU {
             .finish()
     }
 }
+
+impl Display for CPU {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Registers:")?;
+        writeln!(f, "{}", self.registers.to_string())?;
+        writeln!(f, "Status: {}", self.status)?;
+        writeln!(f, "MC Counter: {}", self.microcode_program_counter)
+    }
+}
+
 
 impl CPU {
     pub fn new(memory: Memory, io_controller: IOController) -> Self {
@@ -197,8 +207,7 @@ impl CPU {
                 _ => unreachable!(),
             };
 
-            // println!("{:#?}", self);
-            // println!("{:-<80}", "");
+            log::info!("{}", self);
         }
     }
 

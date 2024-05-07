@@ -1,5 +1,5 @@
 use core::panic;
-use std::mem::size_of;
+use std::{fmt::Display, mem::size_of};
 
 use serde::{Deserialize, Serialize};
 
@@ -64,6 +64,16 @@ pub struct CompiledCommand {
     pub operand: Operand,
 }
 
+impl Display for CompiledCommand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Opcode: {:?}, operand: {}, mode: {:?}",
+            self.opcode, self.operand.operand, self.operand.operand_type
+        )
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct CompiledSection {
     pub start_address: RawAddress,
@@ -89,6 +99,15 @@ pub struct CompiledProgram {
 pub enum MemoryItem {
     Data(MemoryDataType),
     Command(CompiledCommand),
+}
+
+impl Display for MemoryItem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MemoryItem::Data(data) => write!(f, "Data({})", data),
+            MemoryItem::Command(command) => write!(f, "Command: {}", command.to_string()),
+        }
+    }
 }
 
 impl MemoryItem {

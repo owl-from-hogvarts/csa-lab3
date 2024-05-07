@@ -1,3 +1,5 @@
+use std::fmt::{Arguments, Display};
+
 use isa::{CompiledCommand, MemoryItem, Opcode::NOP, Operand, OperandType::None, RawAddress};
 
 use super::TRegisterValue;
@@ -11,6 +13,16 @@ pub struct Registers {
     pub command: CompiledCommand,
     pub program_counter: RawAddress,
     pub address: RawAddress,
+}
+
+impl Display for Registers {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "  Accumulator:     {}", self.accumulator)?;
+        writeln!(f, "  Data:            {}", self.data)?;
+        writeln!(f, "  Command:         {}", self.command)?;
+        writeln!(f, "  Program counter: {}", self.program_counter)?;
+        writeln!(f, "  Address:         {}", self.address)
+    }
 }
 
 impl Default for Registers {
@@ -60,7 +72,7 @@ pub fn ALU(
         NOT_LEFT,
         NOT_RIGHT,
         INC,
-        SHIFT, 
+        SHIFT,
         SHIFT_LEFT,
     }: ALU_Config,
 ) -> ALU_Output {
