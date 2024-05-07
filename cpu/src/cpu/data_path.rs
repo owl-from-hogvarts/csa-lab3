@@ -1,4 +1,4 @@
-use std::fmt::{Arguments, Display};
+use std::fmt::Display;
 
 use isa::{CompiledCommand, MemoryItem, Opcode::NOP, Operand, OperandType::None, RawAddress};
 

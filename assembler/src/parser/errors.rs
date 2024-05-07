@@ -1,11 +1,10 @@
-use std::{error::Error, fmt::Display, ops::Range};
+use std::{error::Error, fmt::Display};
 
 use super::{token::TokenStreamError, Label};
 
 #[derive(Debug)]
 pub enum ParsingError {
     UnknownCommand(String),
-    NoArgumentProvided,
     TokenError(TokenStreamError),
     Other(String),
     CouldNotParseArgument,
@@ -16,9 +15,6 @@ impl Display for ParsingError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ParsingError::UnknownCommand(command) => writeln!(f, "Unknown Command: {command}"),
-            ParsingError::NoArgumentProvided => {
-                writeln!(f, "Argument expected! No argument provided!")
-            }
             ParsingError::Other(err) => writeln!(f, "Syntax error: {}", err),
             ParsingError::CouldNotParseArgument => writeln!(f, "Could not parse argument!"),
             ParsingError::MultipleDefinitions(label) => {
@@ -40,10 +36,6 @@ pub enum CompilationError {
     LabelDoesNotExists {
         label: Label,
     },
-    SectionTooLarge {
-        address_span: Range<u16>,
-        actual_size: usize,
-    },
 }
 
 impl Error for CompilationError {}
@@ -54,18 +46,6 @@ impl Display for CompilationError {
             CompilationError::LabelDoesNotExists { label } => {
                 writeln!(f, "Label {label} does not exist!")
             }
-            CompilationError::SectionTooLarge {
-                actual_size,
-                address_span,
-            } => writeln!(
-                f,
-                r"Section contains {actual_size} items!
-                They do not fit into address span from {} (inclusive) to {} (exclusive)!
-                Max size for the section is {}",
-                address_span.start,
-                address_span.end,
-                address_span.end - address_span.start,
-            ),
         }
     }
 }

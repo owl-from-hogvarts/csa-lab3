@@ -12,7 +12,7 @@
 
 use std::{collections::HashMap, fmt::Debug, io::Write, mem::size_of};
 
-use isa::{RawAddress, RawPort};
+use isa::RawPort;
 
 #[derive(Debug)]
 pub struct IOController {
