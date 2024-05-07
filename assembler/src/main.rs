@@ -10,6 +10,8 @@ use parser::parse_asm;
 
 mod parser;
 mod compiler;
+mod source_code;
+mod command_metadata;
 
 fn main() {
     match start() {

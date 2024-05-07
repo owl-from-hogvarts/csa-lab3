@@ -7,12 +7,12 @@ use crate::{io_controller::IOController, memory::Memory};
 use self::{
     control_unit::{Microinstruction, Signal},
     data_path::{ALU_Config, Registers, ALU},
-    shared::Status,
+    status::Status,
 };
 
 mod control_unit;
 mod data_path;
-mod shared;
+mod status;
 
 type MicrocodeStorage = Vec<Microinstruction>;
 type MicroInstructionCounter = usize;

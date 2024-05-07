@@ -32,25 +32,6 @@ impl From<TokenStreamError> for ParsingError {
 }
 
 #[derive(Debug)]
-pub enum CompilationError {
-    LabelDoesNotExists {
-        label: Label,
-    },
-}
-
-impl Error for CompilationError {}
-
-impl Display for CompilationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CompilationError::LabelDoesNotExists { label } => {
-                writeln!(f, "Label {label} does not exist!")
-            }
-        }
-    }
-}
-
-#[derive(Debug)]
 pub struct ParsingErrorOnLine {
     pub error: ParsingError,
     pub line_number: usize,

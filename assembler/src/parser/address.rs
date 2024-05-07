@@ -1,37 +1,8 @@
-use isa::{OperandType, RawAddress};
+use crate::source_code::command::AddressWithMode;
+use crate::source_code::command::AddressingMode;
+use crate::source_code::command::Reference;
 
-use super::{token::TokenStream, Label, ParsingError};
-
-#[derive(Clone, Copy)]
-pub enum AddressingMode {
-    Absolute, // !number, !label
-    Relative, // number, label
-    // this is to deref pointers
-    Indirect, // (number), (label)
-}
-
-impl From<AddressingMode> for OperandType {
-    fn from(value: AddressingMode) -> Self {
-        use isa::OperandType::*;
-        match value {
-            AddressingMode::Absolute => Absolute,
-            AddressingMode::Relative => Relative,
-            AddressingMode::Indirect => Indirect,
-        }
-    }
-}
-
-#[derive(Clone)]
-pub enum Reference {
-    RawAddress(RawAddress),
-    Label(Label),
-}
-
-#[derive(Clone)]
-pub struct AddressWithMode {
-    pub mode: AddressingMode,
-    pub address: Reference,
-}
+use super::{token::TokenStream, ParsingError};
 
 impl AddressWithMode {
     fn parse_mode(stream: &mut TokenStream) -> Result<AddressingMode, ParsingError> {
