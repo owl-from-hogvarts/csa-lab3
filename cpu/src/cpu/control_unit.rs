@@ -2,7 +2,9 @@ use std::collections::HashSet;
 
 use super::MicrocodeStorage;
 
-#[allow(non_camel_case_types)]
+// this is how I want to call signals. I strongly believe that
+// signal names should be uppercase as they are constants to me
+#[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum Signal {
     // enables io

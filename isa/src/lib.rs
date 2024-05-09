@@ -105,7 +105,7 @@ impl Display for MemoryItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             MemoryItem::Data(data) => write!(f, "Data({})", data),
-            MemoryItem::Command(command) => write!(f, "Command: {}", command.to_string()),
+            MemoryItem::Command(command) => write!(f, "Command: {}", command),
         }
     }
 }

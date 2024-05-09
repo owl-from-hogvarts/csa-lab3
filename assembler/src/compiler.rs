@@ -28,7 +28,7 @@ struct AddressIterator<T> {
 }
 
 impl<'a> AddressIterator<std::slice::Iter<'a, SourceCodeItem>> {
-    fn new(items: &'a Vec<SourceCodeItem>) -> Self {
+    fn new(items: &'a [SourceCodeItem]) -> Self {
         Self {
             items: items.iter(),
             next_address: 0,
@@ -72,7 +72,7 @@ impl<'a, T: Iterator<Item = &'a SourceCodeItem>> Iterator for AddressIterator<T>
 }
 
 impl ParsedProgram {
-    fn addresses(items: &Vec<SourceCodeItem>) -> AddressIterator<std::slice::Iter<SourceCodeItem>> {
+    fn addresses(items: &[SourceCodeItem]) -> AddressIterator<std::slice::Iter<SourceCodeItem>> {
         AddressIterator::new(items)
     }
 
@@ -114,8 +114,8 @@ impl ParsedProgram {
                         continue;
                     }
                     CompilerDirective::Data(data) => data
-                        .into_iter()
-                        .map(|&byte| MemoryItem::Data(byte as u32))
+                        .iter()
+                        .map(|&machine_word| MemoryItem::Data(machine_word))
                         .for_each(|item| current_section.items.push(item)),
                     CompilerDirective::Pointer(label) => {
                         current_section.items.push(MemoryItem::Data(

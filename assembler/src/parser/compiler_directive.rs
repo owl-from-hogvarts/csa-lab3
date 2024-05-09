@@ -16,7 +16,7 @@ impl CompilerDirective {
                     }
 
                     while let Ok(number) = stream.next_long_number() {
-                        data.push(number as u32);
+                        data.push(number);
                     }
 
                     // ensure that no unparsed input left

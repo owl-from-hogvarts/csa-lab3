@@ -76,7 +76,7 @@ impl FromStr for TokenStream {
                     .tokens
                     .push(Token::Word(found.as_str().to_owned()));
 
-                assert!(found.len() > 0, "match should be NON-empty");
+                assert!(!found.is_empty(), "match should be NON-empty");
                 index += found.len();
                 continue;
             }
@@ -173,15 +173,14 @@ impl TokenStream {
     }
 
     pub fn next_end_of_input(&mut self) -> Result<(), TokenStreamError> {
-        let output = match self.peek(1) {
-            Ok(Token::EndOfInput) => (),
-            Ok(token) => return Err(TokenStreamError::UnexpectedToken(token.clone())),
-            Err(err) => return Err(err),
-        };
-
-        self.advance_cursor();
-
-        Ok(output)
+        match self.peek(1) {
+            Ok(Token::EndOfInput) => {
+                self.advance_cursor();
+                Ok(())
+            },
+            Ok(token) => Err(TokenStreamError::UnexpectedToken(token.clone())),
+            Err(err) => Err(err),
+        }
     }
 }
 
@@ -195,7 +194,7 @@ fn parse_number<T: Integer>(input: &str) -> Option<(T, usize)> {
     let prefix = parsed.name("prefix").map_or("", |matched| matched.as_str());
     let value = &parsed["number"];
 
-    let value = value.replace("_", "");
+    let value = value.replace('_', "");
     let radix = match prefix {
         "0x" => 16,
         "0b" => 2,

@@ -25,7 +25,7 @@ impl AddressWithMode {
             return Ok(AddressingMode::Indirect);
         }
 
-        return Ok(AddressingMode::Relative);
+        Ok(AddressingMode::Relative)
     }
 
     fn parse_address(stream: &mut TokenStream) -> Result<Reference, ParsingError> {

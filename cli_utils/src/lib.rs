@@ -1,8 +1,8 @@
 use std::{error::Error, fmt::Display, path::PathBuf};
 
-pub fn check_empty_arguments(args: &Vec<String>) -> Result<(), ConfigurationError> {
+pub fn check_empty_arguments(args: &[String]) -> Result<(), ConfigurationError> {
     for (index, arg) in args.iter().enumerate() {
-        if arg.len() < 1 {
+        if arg.is_empty() {
             return Err(ConfigurationError::EmptyArgument(index));
         }
     }

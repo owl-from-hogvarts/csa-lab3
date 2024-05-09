@@ -97,7 +97,7 @@ impl SourceCommandMetadata {
                 opcode: Opcode::HALT,
                 argument_type: Argument::parse_none,
             }),
-            _ => return Err(ParsingError::UnknownCommand(opcode.to_owned())),
+            _ => Err(ParsingError::UnknownCommand(opcode.to_owned())),
         }
     }
 }

@@ -39,7 +39,7 @@ impl ParsedProgram {
         }
 
         self.labels.insert(label, self.items.len());
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -106,5 +106,5 @@ fn process_line(line: &str, program: &mut ParsedProgram) -> Result<(), ParsingEr
     let command = SourceCodeCommand::from_token_stream(&mut tokens)?;
     program.items.push(SourceCodeItem::Command(command));
 
-    return Ok(());
+    Ok(())
 }

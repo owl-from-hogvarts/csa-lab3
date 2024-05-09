@@ -10,7 +10,7 @@ use io_controller::{IOController, SimpleInputOutput};
 use isa::CompiledProgram;
 use memory::Memory;
 
-use crate::cpu::CPU;
+use crate::cpu::Cpu;
 
 mod cpu;
 mod io_controller;
@@ -48,7 +48,7 @@ fn start() -> Result<(), Box<dyn Error>> {
     let memory = Memory::burn(program);
     let io_controller = IOController::new().connect(0, Box::new(SimpleInputOutput::new(output)));
 
-    let cpu = CPU::new(memory, io_controller);
+    let cpu = Cpu::new(memory, io_controller);
     cpu.start();
 
     Ok(())

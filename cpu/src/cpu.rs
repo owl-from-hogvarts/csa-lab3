@@ -18,7 +18,7 @@ type MicrocodeStorage = Vec<Microinstruction>;
 type MicroInstructionCounter = usize;
 type TRegisterValue = u32;
 
-pub struct CPU {
+pub struct Cpu {
     io_controller: IOController,
     registers: Registers,
     status: Status,
@@ -27,7 +27,7 @@ pub struct CPU {
     microcode_program_counter: MicroInstructionCounter,
 }
 
-impl Debug for CPU {
+impl Debug for Cpu {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CPU")
             .field("io_controller", &self.io_controller)
@@ -38,17 +38,16 @@ impl Debug for CPU {
     }
 }
 
-impl Display for CPU {
+impl Display for Cpu {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Registers:")?;
-        writeln!(f, "{}", self.registers.to_string())?;
+        writeln!(f, "{}", self.registers)?;
         writeln!(f, "Status: {}", self.status)?;
         writeln!(f, "MC Counter: {}", self.microcode_program_counter)
     }
 }
 
-
-impl CPU {
+impl Cpu {
     pub fn new(memory: Memory, io_controller: IOController) -> Self {
         Self {
             io_controller,
@@ -91,13 +90,11 @@ impl CPU {
 
             let left = if micro_instruction.contains(&Signal::ZERO_LEFT) {
                 0
+            } else if micro_instruction.contains(&Signal::SELECT_PC) {
+                // no sign extension happens
+                self.registers.program_counter as u32
             } else {
-                if micro_instruction.contains(&Signal::SELECT_PC) {
-                    // no sign extension happens
-                    self.registers.program_counter as u32
-                } else {
-                    self.registers.accumulator
-                }
+                self.registers.accumulator
             };
 
             let right_0 = micro_instruction.contains(&Signal::SELECT_RIGHT_DATA) as u8;
@@ -142,38 +139,27 @@ impl CPU {
                 }
             }
 
-            if micro_instruction
-                .get(&Signal::WRITE_PROGRAM_COUNTER)
-                .is_some()
-            {
+            if micro_instruction.contains(&Signal::WRITE_PROGRAM_COUNTER) {
                 self.registers.program_counter = alu_output.value as RawAddress;
             }
 
-            let invert_flags = micro_instruction
-                .get(&Signal::WRITE_PROGRAM_COUNTER_CLEAR)
-                .is_some();
+            let invert_flags = micro_instruction.contains(&Signal::WRITE_PROGRAM_COUNTER_CLEAR);
 
             // Z invert write
             // 0 0      0
             // 1 0      1
             // 1 1      0
             // 0 1      1
-            if micro_instruction
-                .get(&Signal::WRITE_PROGRAM_COUNTER_Z)
-                .is_some()
+            if micro_instruction.contains(&Signal::WRITE_PROGRAM_COUNTER_Z)
+                && self.status.zero != invert_flags
             {
-                if self.status.zero != invert_flags {
-                    self.registers.program_counter = alu_output.value as RawAddress;
-                }
+                self.registers.program_counter = alu_output.value as RawAddress;
             }
 
-            if micro_instruction
-                .get(&Signal::WRITE_PROGRAM_COUNTER_C)
-                .is_some()
+            if micro_instruction.contains(&Signal::WRITE_PROGRAM_COUNTER_C)
+                && self.status.carry != invert_flags
             {
-                if self.status.carry != invert_flags {
-                    self.registers.program_counter = alu_output.value as RawAddress;
-                }
+                self.registers.program_counter = alu_output.value as RawAddress;
             }
 
             if micro_instruction.contains(&Signal::WRITE_COMMAND) {
@@ -218,7 +204,11 @@ impl CPU {
             micro_instructions_executed += 1;
         }
 
-        log::info!("Instructions: {}; MC: {}", instructions_executed, micro_instructions_executed);
+        log::info!(
+            "Instructions: {}; MC: {}",
+            instructions_executed,
+            micro_instructions_executed
+        );
     }
 
     fn opcode_to_mc(opcode: Opcode) -> MicroInstructionCounter {

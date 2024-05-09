@@ -50,7 +50,7 @@ impl Device for SimpleInputOutput {
     }
 
     fn write_to_device(&mut self, payload: u8) {
-        std::io::stdout().write(&[payload]).unwrap();
+        std::io::stdout().write_all(&[payload]).unwrap();
     }
 }
 
@@ -79,8 +79,7 @@ impl IOController {
     }
 
     pub fn write(&mut self, device_address: RawPort, payload: u8) {
-        self.devices
-            .get_mut(&device_address)
-            .map(|device| device.write_to_device(payload));
+        if let Some(device) = self.devices
+            .get_mut(&device_address) { device.write_to_device(payload) }
     }
 }
