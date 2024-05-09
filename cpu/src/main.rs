@@ -27,6 +27,7 @@ fn start() -> Result<(), Box<dyn Error>> {
     let log_path = Path::new("cpu.log");
     let log_output = OpenOptions::new()
         .create(true)
+        .truncate(true)
         .write(true)
         .open(log_path)?;
     let log_config = simplelog::ConfigBuilder::new()
