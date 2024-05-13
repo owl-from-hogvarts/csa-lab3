@@ -6,7 +6,7 @@ Special thanks to [Zerumi Coder](https://github.com/zerumi) whose purest soul he
 
 Thank you, Zerumi!
 
-Thanks to [Lanne](https://github.com/lannee) the Great, who supported the Magnificent Order of Rust!
+Thanks to [Lannee](https://github.com/lannee) the Great, who supported the Magnificent Order of Rust!
 
 Thanks to [Local Piper](https://github.com/localPiper/) the Funniest, who didn't let me give up! His majesty supported me with marvelous jokes!
 
